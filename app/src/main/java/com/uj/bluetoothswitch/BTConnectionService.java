@@ -4,13 +4,18 @@ import android.app.Service;
 import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothHeadset;
+import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.IBinder;
+import android.util.Log;
+import android.widget.Toast;
 
 import com.uj.bluetoothswitch.disposables.ChannelGate;
+import com.uj.bluetoothswitch.disposables.StringMessageIOProcessors;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -20,29 +25,36 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.Charset;
 import java.util.UUID;
 
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import io.reactivex.rxjava3.annotations.NonNull;
 import io.reactivex.rxjava3.core.Observable;
+import io.reactivex.rxjava3.core.Observer;
+import io.reactivex.rxjava3.disposables.CompositeDisposable;
+import io.reactivex.rxjava3.disposables.Disposable;
+import io.reactivex.rxjava3.schedulers.Schedulers;
+import io.reactivex.rxjava3.subjects.PublishSubject;
 
 public class BTConnectionService extends Service {
 
-   enum ConenctionState{NOCONNECTEDAUDIO,WAITFORINCOMING,PING,TALK}
+   enum ConenctionState{NO_CONNECTED_A2DP, A2DP_CONNECTED,REACHING}
    private final static String TAG="BTConnectionService";
-   private final static Byte[] COMMANDDPATTERN={125,125,125};
-   private final static ChannelGate PATTERNGATE=ChannelGate.getSingleModeChannelGate(COMMANDDPATTERN);
+   private static final UUID MYUUID= UUID.fromString("70a381c8-2486-47b8-acad-82d84e367eee");
+    private static final String NAME= "BTSWITCHER";
+    private static final String PHONEMAC="F8:C3:9E:8B:28:C6";
+    private static final  String PLANSHMAC="74:D2:1D:6B:19:88";
+    private static final Byte[] KEYPATTERN=new Byte[]{125,125,125};
 
 
 
-    private ConenctionState conenctionState;
-   private BluetoothServerSocket serverSocket;
-   private BluetoothSocket connectionSocket;
-
-   private BluetoothA2dp a2dpProfile;
-   private BluetoothDevice connectedA2DPDevice;
-   private final UUID uuid=UUID.fromString("70a381c8-2486-47b8-acad-82d84e367eee");
-   private final BluetoothAdapter bluetoothAdapter=BluetoothAdapter.getDefaultAdapter();
+   private final BluetoothAdapter adapter=BluetoothAdapter.getDefaultAdapter();
    private final IntentFilter a2dpConnectionIntentFilter=new IntentFilter(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED);
 
 
-   public BTConnectionService() {
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        return super.onStartCommand(intent, flags, startId);
+
 
     }
 
@@ -52,28 +64,7 @@ public class BTConnectionService extends Service {
         throw new UnsupportedOperationException("Not yet implemented");
     }
 
-//TODO
-    private Observable<BluetoothDevice> getInputConnectionObservable(@NotNull BluetoothSocket rfcSocket){
-
-      return Observable.<BluetoothDevice,BluetoothSocket>using(
-              ()->rfcSocket,
-
-              (socket)->Observable.<BluetoothDevice>create(
-                      (emitter)->{
-                          if(!socket.isConnected())
-                              emitter.onError(new RuntimeException("RFC Socket is not connected"));
-                          bluetoothAdapter.cancelDiscovery();
-                          InputStream bluetoothInput=socket.getInputStream();
-                         DataInputStream dataInputStream =new DataInputStream( PATTERNGATE.singleMatch(bluetoothInput));
-                         int lengthOfMeassage=dataInputStream.readInt();
-
-//TODO
-                      }
-              ),
-
-              (socket)->socket.close()
-              );
 
 
-    }
 }
+

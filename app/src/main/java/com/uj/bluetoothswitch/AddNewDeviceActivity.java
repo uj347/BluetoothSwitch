@@ -11,7 +11,7 @@ import android.view.View;
 
 import com.uj.bluetoothswitch.databinding.ActivityAddNewDeviceBinding;
 
-public class addNewDeviceActivity extends AppCompatActivity {
+public class AddNewDeviceActivity extends AppCompatActivity {
 
 
 

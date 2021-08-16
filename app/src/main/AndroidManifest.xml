@@ -3,9 +3,13 @@
     package="com.uj.bluetoothswitch">
 
     <uses-permission android:name="android.permission.BLUETOOTH" />
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
 
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
+    <uses-permission android:name="android.permission.BROADCAST_STICKY" />
+
+
+
+
 
     <application
         android:allowBackup="true"
@@ -20,7 +24,7 @@
             android:exported="true"></service>
 
         <activity
-            android:name=".addNewDeviceActivity"
+            android:name=".AddNewDeviceActivity"
             android:label="@string/title_activity_add_new_device"
             android:theme="@style/Theme.BluetoothSwitch.NoActionBar" />
         <activity

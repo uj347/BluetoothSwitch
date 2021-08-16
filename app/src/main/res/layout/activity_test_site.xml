@@ -19,24 +19,49 @@
         android:layout_marginTop="96dp"
         android:layout_marginEnd="24dp"
         android:inputType="none"
-        app:layout_constraintBottom_toTopOf="@+id/testButton"
+        app:layout_constraintBottom_toTopOf="@+id/buttonsLayout"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <Button
-        android:id="@+id/testButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="start"
-        android:layout_marginStart="48dp"
-        android:layout_marginEnd="48dp"
-        android:layout_marginBottom="64dp"
-        android:enabled="true"
-        android:text="@string/action_sign_in"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+   <androidx.appcompat.widget.LinearLayoutCompat
+       android:id="@+id/buttonsLayout"
+       android:layout_width="wrap_content"
+       android:layout_height="wrap_content"
+       android:layout_gravity="start"
+       android:layout_marginStart="48dp"
+       android:layout_marginEnd="48dp"
+       android:layout_marginBottom="64dp"
+       android:enabled="true"
+       android:text="@string/action_sign_in"
+       app:layout_constraintBottom_toBottomOf="parent"
+       app:layout_constraintEnd_toEndOf="parent"
+       app:layout_constraintStart_toStartOf="parent">
 
+       <Button
+           android:id="@+id/testButton1"
+           android:layout_width="wrap_content"
+           android:layout_height="wrap_content"
+           android:layout_gravity="start"
+           android:enabled="true"
+           android:text="Connect T"
+           android:onClick="connectOnClick"
+           app:layout_constraintBottom_toBottomOf="parent"
+           app:layout_constraintEnd_toEndOf="parent"
+           app:layout_constraintStart_toStartOf="parent" />
+
+       <Button
+           android:id="@+id/testButton2"
+           android:layout_width="wrap_content"
+           android:layout_height="wrap_content"
+           android:layout_gravity="start"
+           android:enabled="true"
+           android:text="disconnect t"
+           android:onClick="disconnectOnClick"
+
+           app:layout_constraintBottom_toBottomOf="parent"
+           app:layout_constraintEnd_toEndOf="parent"
+           app:layout_constraintStart_toStartOf="parent" />
+   </androidx.appcompat.widget.LinearLayoutCompat>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

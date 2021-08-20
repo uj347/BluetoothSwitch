@@ -11,7 +11,7 @@ public interface IBluetoothProfileManager {
     boolean isConnected (String MAC);
     List<BluetoothDevice> getConnectedDevices();
      Completable tryConnectToDevice(String MAC);
-    Completable tryUnbindFromDevice (String MacToUnbind);
+    Completable tryDisconnectFromDevice(String MacToUnbind);
 
 
 }

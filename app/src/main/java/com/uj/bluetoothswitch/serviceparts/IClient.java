@@ -6,7 +6,7 @@ import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.Observer;
 
 public interface IClient extends IConnection {
-    void starConnectionToSpecifiedMAC(String MAC);
+    void startConnectionToSpecifiedMAC(String MAC);
 
     void stopConnection();
     boolean isRunning();

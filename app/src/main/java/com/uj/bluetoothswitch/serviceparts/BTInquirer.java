@@ -5,12 +5,15 @@ import android.bluetooth.BluetoothDevice;
 import android.util.Log;
 
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import io.reactivex.rxjava3.annotations.NonNull;
 import io.reactivex.rxjava3.core.Completable;
+import io.reactivex.rxjava3.core.CompletableObserver;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.Observer;
+import io.reactivex.rxjava3.disposables.CompositeDisposable;
+import io.reactivex.rxjava3.disposables.Disposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
 public class BTInquirer implements IInquirer<BluetoothDevice> {
@@ -22,50 +25,96 @@ public class BTInquirer implements IInquirer<BluetoothDevice> {
     private static BluetoothAdapter sAdapter= BluetoothAdapter.getDefaultAdapter();
     private final IClient mClientConnection;
     private final IBluetoothProfileManager mProfileManager;
+    private final CompositeDisposable hooks=new CompositeDisposable();
+    private AtomicBoolean breakFlag=new AtomicBoolean();
 
 
-    public BTInquirer(IClient clientConenction,IBluetoothProfileManager manager){
+    @Override
+    public void stopInqueries() {breakFlag.set(true);}
+
+
+    public BTInquirer(IClient clientConenction, IBluetoothProfileManager manager){
         this.mClientConnection=clientConenction;
         this.mProfileManager=manager;
     }
     @Override
-    public boolean makeInquiry(String whatAboutMAC, BluetoothDevice... devicesToConnect) {
-       boolean result=false;
-        for (BluetoothDevice device:
-             devicesToConnect) {
-            if (makeSingleInquiry(whatAboutMAC,device)) {
-                result = true;
-                break;
-            }
+    public void makeInquiry(String whatAboutMAC, BluetoothDevice... devicesToConnect) {
+       breakFlag.set(false);
+        for (BluetoothDevice device: devicesToConnect){
+            if(breakFlag.getAndSet(false))
+                            {break;}
+
+
+            makeSingleInquiry(whatAboutMAC,device)
+                    .doOnSubscribe((oo)-> Log.d(TAG, "makeInquiry: Thread: "+ Thread.currentThread().getName()))
+                    .subscribe(new CompletableObserver(){
+                        @Override
+                        public void onSubscribe(@NonNull Disposable d) {
+                            if (!d.isDisposed()){
+                                hooks.clear();
+                                hooks.add(d);
+                            }
+                        }
+
+                        @Override
+                        public void onComplete() {
+                            Log.d(TAG, "Single inquery successful");
+
+                        }
+
+                        @Override
+                        public void onError(@NonNull Throwable e) {
+                            Log.d(TAG, "onError: in single inquery");
+
+                        }
+                    });
+//                    ()->{
+//                        Log.d(TAG, "makeInquiry: completed succesfully "+whatAboutMAC+" most be connected");
+//                    },
+//                    (err)->{
+//                        Log.d(TAG, "Error from single inquiry: "+ err.getMessage());
+//                    }
+
 
         }
-        return result;
     }
 
-    private boolean makeSingleInquiry(String whatAboutMAC, BluetoothDevice deviceToConnect){
-        AtomicBoolean result=new AtomicBoolean();
-        Completable.create(
+    private  Completable makeSingleInquiry(String whatAboutMAC, BluetoothDevice deviceToConnect){
+
+        Log.d(TAG, "makeSingleInquiry: Making single inquiry to: "
+                + deviceToConnect.getAddress()+ deviceToConnect.getName());
+
+       return Completable.create(
 
                 emitter->{
-                    mClientConnection.starConnectionToSpecifiedMAC(deviceToConnect.getAddress());
-                    Observer<String> outHook=mClientConnection.getExternalOutputHook();
-                    Observable <String>inputHook=mClientConnection.getExternalInputHook();
-                    Thread.sleep(150);
-                      outHook.onNext(whatAboutMAC);
-                        inputHook
-                                
-                                .subscribe(
+                    Observer<String> outHook = mClientConnection.getExternalOutputHook();
+                    Observable<String> inputHook = mClientConnection.getExternalInputHook();
+
+
+                        mClientConnection.startConnectionToSpecifiedMAC(deviceToConnect.getAddress());
+                        Thread.sleep(120);
+
+
+                     outHook.onNext(whatAboutMAC);
+
+
+
+                    inputHook
+                            .doOnNext((s)-> Log.d(TAG, "makeSingleInquiry: nextString from inputHook on thread: "
+                                    + Thread.currentThread().getName()))
+
+                            .subscribe(
                                 (s)->{
-                                    Log.d(TAG, "makeSingleInquiry: Listening for incoming messagec from inputHook");
+                                    Log.d(TAG, "makeSingleInquiry: Listening for incoming message from inputHook");
                                     if (s.equals("YES")) {
-                                        Thread.sleep(250);
-                                        Log.d(TAG, "makeSingleInquiry: Answer YES is Aquired");
+                                        Thread.sleep(500);
+                                        Log.d(TAG, "Answer YES is Aquired on Thread "+Thread.currentThread().getName());
                                         mProfileManager.tryConnectToDevice(whatAboutMAC).subscribe();
                                         if(!emitter.isDisposed())emitter.onComplete();
                                     }
                                     else {
                                         if(!emitter.isDisposed()) {
-                                            emitter.onError(new RuntimeException("Answer is no"));
+                                            emitter.onComplete();
                                         }
                                     }
                                 },
@@ -75,20 +124,8 @@ public class BTInquirer implements IInquirer<BluetoothDevice> {
                                 );
 
                     })
-                .subscribeOn(Schedulers.io())
-                .timeout(10,TimeUnit.SECONDS)
-                .doOnError(err->mClientConnection.stopConnection())
-                .retry(2)
-                .subscribe(
-                ()->{
-                    Log.d(TAG, "makeSingleInquiry: was succesfull with device: "+whatAboutMAC);
-                    result.set(true);
-                    mClientConnection.stopConnection();},
-                (err)->{result.set(false);
-                    mClientConnection.stopConnection();
-                    Log.d(TAG, "inquiry returned false because of: "+ err.getMessage()+Thread.currentThread().getName());}
-        );
+               .observeOn(Schedulers.io());
 
-        return  result.get();
     }
 }
+

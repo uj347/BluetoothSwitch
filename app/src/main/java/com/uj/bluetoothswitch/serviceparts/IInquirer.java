@@ -4,7 +4,8 @@ import android.bluetooth.BluetoothDevice;
 
 public interface  IInquirer<T> {
 
-boolean makeInquiry( String whatAboutMAC,T ... devicesToConnect);
+void makeInquiry( String whatAboutMAC,T ... devicesToConnect);
+void stopInqueries();
 
 
 }

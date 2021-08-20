@@ -70,7 +70,7 @@ public class BTListener implements IListener {
                             InputStream inputStream = socket.getInputStream();
                             OutputStream outputStream = socket.getOutputStream();
                             mStopSignalSubject
-                                    .subscribeOn(Schedulers.io())
+                                    .observeOn(Schedulers.newThread())
                                     .subscribe(Void-> {
                                         if(!emitter.isDisposed())emitter.onComplete();
                                     });
@@ -79,21 +79,39 @@ public class BTListener implements IListener {
                                 if(!em.isDisposed())em.onNext(msg);
                             })
                                     .subscribeOn(Schedulers.io())
-                                    .subscribe(mExternalRecieverHook);
+                                    .subscribe(
+                                            (msg)->{mExternalRecieverHook.onNext(msg);
+                                                Log.d(TAG, "Msg recieved in listener: "+msg);},
+                                            (err)->{
+                                                Log.d(TAG, "Error occured in message recieving "+ err);
+                                            }
+                                    );
+                                            //mExternalRecieverHook);
 
-                            mExternalSenderHook.subscribeOn(Schedulers.io()).subscribe(
-                                    (msg)-> StringMessageIOProcessors.send(msg,outputStream,mKey)
+                            mExternalSenderHook
+                                    .observeOn(Schedulers.io())
+                                    .map((msg)->{StringMessageIOProcessors.send(msg, outputStream, mKey);
+                                    return msg;})
+                                    .subscribe(
+                                    (msg)-> {
+                                        Log.d(TAG, "Message sended from listener: "+ msg);
+                                        },
+                                    (err)->{
+                                        Log.d(TAG, "Error ocured on sending from listener: "+err);
+
+                                    }
                             );
                         }
                 );
                 },
                 (socket -> {
                     if(socket.isConnected())socket.close();
+                    Log.d(TAG, "Dsisposing connection socket in listener");
                 })
         )
                 .subscribeOn(Schedulers.io())
                // .retry(5)
-                .delay(750, TimeUnit.MILLISECONDS)
+                .delay(350, TimeUnit.MILLISECONDS)
                 .subscribe(()-> {Log.d(TAG, "connection completed");},
                         (error)-> Log.d(TAG, "connection failed "));
 
@@ -109,7 +127,7 @@ public class BTListener implements IListener {
     /** Получить коннектор для получения сообщений, он будет что то посылать только при включенном ресивере*/
     @Override
     public Observable<String> getExternalInputHook(){
-           return  mExternalRecieverHook;
+           return  mExternalRecieverHook.observeOn(Schedulers.io());
     };
 
     @Override

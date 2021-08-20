@@ -2,12 +2,10 @@ package com.uj.bluetoothswitch.serviceparts;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.os.Handler;
 import android.util.Log;
 
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 
 import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.Observable;
@@ -38,15 +36,16 @@ public class BTReplier  implements IReplier<BluetoothDevice>{
         Completable.create(
                 emitter->{
                     mListenerConnection.startListening();
-                    Thread.sleep(250);
+                    Thread.sleep(100);
                     Observer<String> outHook=mListenerConnection.getExternalOutputHook();
                     Observable<String> inputHook=mListenerConnection.getExternalInputHook();
 
                           stopSubject
+                                  .observeOn(Schedulers.newThread())
                                   .subscribe((o)->emitter.onComplete());
 
                            inputHook
-                                   .observeOn(Schedulers.newThread())
+                                   .debounce(2000,TimeUnit.MILLISECONDS)
                                    .subscribe(
                                         (s)->{
                                             if (s.equals(deviceOfIntrest.getAddress())) {
@@ -54,7 +53,7 @@ public class BTReplier  implements IReplier<BluetoothDevice>{
                                                 outHook.onNext("YES");
                                                 if (mProfileManager.isConnected(deviceOfIntrest.getAddress()))
                                                 {
-                                                    mProfileManager.tryUnbindFromDevice(deviceOfIntrest.getAddress()).subscribe();
+                                                    mProfileManager.tryDisconnectFromDevice(deviceOfIntrest.getAddress()).subscribe();
                                                 }
                                                 Thread.sleep(150);
 
@@ -72,7 +71,7 @@ public class BTReplier  implements IReplier<BluetoothDevice>{
                 )
                 .subscribeOn(Schedulers.io())
                 .doOnError(err->mListenerConnection.stopListening())
-                .retry(2)
+                .retry(1)
                 .subscribe(
                         ()->{
                             Log.d(TAG, "waitForInquiry: completed ");

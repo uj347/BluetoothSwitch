@@ -51,7 +51,7 @@ int readed=0;
         dataOutputStream.writeInt(msgLength);
         dataOutputStream.write(msgByteRepresentation);
         dataOutputStream.flush();
-        Log.d(TAG, "sent message from processor, legth:"+msgLength);
+        Log.d(TAG, "sent message from processor, legth:"+msgLength+"On Thread: "+ Thread.currentThread().getName());
 
 
 

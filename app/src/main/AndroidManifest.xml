@@ -21,7 +21,7 @@
         <service
             android:name=".BTConnectionService"
             android:enabled="true"
-            android:exported="true"></service>
+            android:exported="false"></service>
 
         <activity
             android:name=".AddNewDeviceActivity"

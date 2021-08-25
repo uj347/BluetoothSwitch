@@ -1,6 +1,8 @@
 package com.uj.bluetoothswitch.dbStuff;
 
 
+import android.os.Parcelable;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.room.ColumnInfo;

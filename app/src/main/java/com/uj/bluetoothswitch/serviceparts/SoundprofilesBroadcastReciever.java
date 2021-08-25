@@ -10,14 +10,15 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.util.Log;
 
-import io.reactivex.rxjava3.core.Observer;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MutableLiveData;
 
 public class SoundprofilesBroadcastReciever extends BroadcastReceiver {
-    private static  String TAG="A2DPBroadcatReciever";
-    private final Observer<Intent> mIntentHook;
-    public SoundprofilesBroadcastReciever(Observer<Intent> commanderHook){
-        this.mIntentHook=commanderHook;
-    };
+    private static  String TAG="SoundProfilesBroadcastReceiver";
+    private MutableLiveData<BluetoothDevice> currentBtDeviceLD=new MutableLiveData<>(null);
+
+    public MutableLiveData<BluetoothDevice> getCurrentBTSoundDeviceLivedata(){
+        return currentBtDeviceLD;}
 
     public static IntentFilter sIntentFilter;
     static{sIntentFilter=new IntentFilter(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED);
@@ -30,7 +31,7 @@ public class SoundprofilesBroadcastReciever extends BroadcastReceiver {
             Log.d(TAG, "recieved broadcast");
             Intent processedIntent=resolveRecievedIntentToCustomIntent(intent);
             if(processedIntent!=null){
-                mIntentHook.onNext(processedIntent);
+                context.sendBroadcast(processedIntent);
             }
         }
     }
@@ -48,13 +49,27 @@ public class SoundprofilesBroadcastReciever extends BroadcastReceiver {
         else{
             Log.d(TAG, "resolveRecievedIntentToCustomIntent: Intent accepted and prepaired to transmit to commander");
             Intent resultingCustomIntent=new Intent();
-            String actionToPass=extraState==BluetoothProfile.STATE_CONNECTED?
-                    Commander.COMMAND_BTSOUND_CONNECTED :Commander.COMMAND_BTSOUND_DISCONNECTED;
-            String macAdressToPass=extraDevice.getAddress();
+            String actionToPass;
+            if(extraState==BluetoothProfile.STATE_CONNECTED){
+                actionToPass=Commander.COMMAND_BTSOUND_CONNECTED;
+                putDeviceToLiveData(extraDevice);
+            }else{
+                actionToPass=Commander.COMMAND_BTSOUND_DISCONNECTED;
+                putNullToLiveData();
+            }
+
             resultingCustomIntent.setAction(actionToPass);
-            resultingCustomIntent.putExtra("DEVICE",macAdressToPass);
+            resultingCustomIntent.putExtra(BluetoothDevice.EXTRA_DEVICE,extraDevice);
             return resultingCustomIntent;
         }
+    }
+
+    private void putDeviceToLiveData (BluetoothDevice device){
+        currentBtDeviceLD.setValue(device);
+    }
+    private void putNullToLiveData(){
+        currentBtDeviceLD.setValue(null);
+
     }
 
 

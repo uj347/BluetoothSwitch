@@ -14,9 +14,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.reactivex.rxjava3.core.Completable;
@@ -28,7 +26,7 @@ public class SoundProfileManager implements IBluetoothProfileManager {
 
 private final static String TAG= "SoundProfile_Manager";
 private static final String PHONEMAC="F8:C3:9E:8B:28:C6";
-private final BluetoothAdapter sAdapter= BluetoothAdapter.getDefaultAdapter();
+private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
 private BluetoothA2dp mA2dpProxy;
 private BluetoothHeadset mHeadsetProxy;
 private A2dpServiceListener mServiceListener =new A2dpServiceListener();
@@ -44,8 +42,9 @@ private AtomicBoolean isConstructed=new AtomicBoolean();
 public SoundProfileManager(Context context){
     Log.d(TAG, "SoundProfile: in constructor");
     Completable.create(e->{
-        sAdapter.getProfileProxy(context, mServiceListener,BluetoothProfile.A2DP);
-        sAdapter.getProfileProxy(context, mServiceListener,BluetoothProfile.HEADSET);
+        mAdapter.getProfileProxy(context, mServiceListener,BluetoothProfile.A2DP);
+        mAdapter.getProfileProxy(context, mServiceListener,BluetoothProfile.HEADSET);
+
         proxyRecievedSubject
                 .observeOn(Schedulers.newThread())
                 .distinct()
@@ -88,7 +87,7 @@ public SoundProfileManager(Context context){
                         mHeadsetDisconnectMethod.setAccessible(true);
 
 
-                        mUnbindMethod = sAdapter.getRemoteDevice(PHONEMAC)
+                        mUnbindMethod = mAdapter.getRemoteDevice(PHONEMAC)
                                 .getClass()
                                 .getMethod("removeBond", (Class[]) null);
                         mUnbindMethod.setAccessible(true);
@@ -111,7 +110,7 @@ public boolean isFullyConstruted(){
 
     @Override
     public boolean isConnected(String MAC) {
-    BluetoothDevice deviceOfIntrest=sAdapter.getRemoteDevice(MAC);
+    BluetoothDevice deviceOfIntrest= mAdapter.getRemoteDevice(MAC);
     return mA2dpProxy.getConnectedDevices().contains(deviceOfIntrest)
             ||mHeadsetProxy.getConnectedDevices().contains(deviceOfIntrest);
 
@@ -129,9 +128,9 @@ public boolean isFullyConstruted(){
 
     @Override
     public synchronized Completable tryConnectToDevice(String MAC) {
-         BluetoothDevice deviceOfIntrest=sAdapter.getRemoteDevice(MAC);
+         BluetoothDevice deviceOfIntrest= mAdapter.getRemoteDevice(MAC);
         return Completable.create(e->{
-           if (!sAdapter.getBondedDevices().contains(sAdapter.getRemoteDevice(MAC))) {
+           if (!mAdapter.getBondedDevices().contains(mAdapter.getRemoteDevice(MAC))) {
                Thread.sleep(200);
                deviceOfIntrest.createBond();
                Log.d(TAG, "tryConnectToDevice bonding invoked");
@@ -149,8 +148,8 @@ public boolean isFullyConstruted(){
     @Override
     public synchronized Completable tryDisconnectFromDevice(String MAC) {
        return Completable.create(e->{
-           invokeDisconnectA2DP(sAdapter.getRemoteDevice(MAC));
-           invokeDisconnectHeadset(sAdapter.getRemoteDevice(MAC));
+           invokeDisconnectA2DP(mAdapter.getRemoteDevice(MAC));
+           invokeDisconnectHeadset(mAdapter.getRemoteDevice(MAC));
 //           Thread.sleep(200);
 //           invokeUnbind(sAdapter.getRemoteDevice(MAC));
            if(!e.isDisposed()){e.onComplete();}

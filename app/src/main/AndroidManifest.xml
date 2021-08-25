@@ -3,15 +3,18 @@
     package="com.uj.bluetoothswitch">
 
     <uses-permission android:name="android.permission.BLUETOOTH" />
-
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
     <uses-permission android:name="android.permission.BROADCAST_STICKY" />
+    <uses-feature android:name="android.bluetooth"/>
+
 
 
 
 
 
     <application
+       android:name=".BluetoothSwitcherApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -19,14 +22,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.BluetoothSwitch">
         <service
-            android:name=".BTConnectionService"
+            android:name=".serviceparts.BTConnectionService"
+            android:foregroundServiceType="connectedDevice"
             android:enabled="true"
             android:exported="false"></service>
 
-        <activity
-            android:name=".AddNewDeviceActivity"
-            android:label="@string/title_activity_add_new_device"
-            android:theme="@style/Theme.BluetoothSwitch.NoActionBar" />
         <activity
             android:name=".TestSiteActivity"
             android:label="@string/title_activity_test_site" />

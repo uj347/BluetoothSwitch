@@ -112,7 +112,14 @@ public class BTClient implements IClient {
 
                             Observable.<String>create(em->{
                                 if(socket.isConnected()){
-                                 String msg=StringMessageIOProcessors.extract(inputStream,mKey);
+                                   String msg="";
+                                    try {
+                                         msg = StringMessageIOProcessors.extract(inputStream, mKey);
+                                    }catch (IOException exc){
+                                        if(!emitter.isDisposed()){
+                                            emitter.onError(exc);
+                                        }
+                                    }
                                     Log.d(TAG, "Recieved msg: "+ msg);
                                     em.onNext(msg);
                                 }else{
@@ -145,10 +152,7 @@ public class BTClient implements IClient {
 
                                                 }
                                             }
-//                                            (s)-> {
-//                                                mExternalInputHook.onNext(s);
-//                                            },
-//                                            (err)->{emitter.onError(err);}
+//
                                     );
 
 
@@ -207,6 +211,7 @@ public class BTClient implements IClient {
                         Log.d(TAG, "connection completed");
                         },
                             (error)-> {
+                                mExternalInputHook.onNext(IClient.NO_CONNECTION);
                                 if(!hooks.isDisposed()){
                                     hooks.clear();
                                 }

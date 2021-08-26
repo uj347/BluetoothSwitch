@@ -14,6 +14,7 @@ import android.content.ServiceConnection;
 import android.os.Build;
 import android.os.IBinder;
 import android.util.Log;
+import android.widget.Toast;
 
 import androidx.core.app.NotificationCompat;
 import androidx.lifecycle.LiveData;
@@ -89,6 +90,10 @@ public class BluetoothSwitcherApp extends Application {
                 BluetoothDevice currentDevice=intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                 if(currentDevice!=null) {
                     currentlyConnectedSoundDevice.setValue(currentDevice);
+                    Toast.makeText(getApplicationContext()
+                            ,"Connected to sound device: "+currentDevice
+                            ,Toast.LENGTH_SHORT)
+                            .show();
                 };
                 break;
             case(STATE_REACHING):

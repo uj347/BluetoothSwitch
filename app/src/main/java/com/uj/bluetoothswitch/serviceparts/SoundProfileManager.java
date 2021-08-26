@@ -65,9 +65,7 @@ public SoundProfileManager(Context context){
             .subscribe(
                     ()->{
 
-                        //TODO Добыыть такие же хедcет методы
-                        //TODO Добавить эти методы в подключение\отключение
-                        //TODO Придумать как отметить получение обоих прокси
+
                         mA2DPConnectMethod =mA2dpProxy.getClass()
                             .getMethod("connect", BluetoothDevice.class);
                         mA2DPConnectMethod.setAccessible(true);
@@ -142,7 +140,7 @@ public boolean isFullyConstruted(){
                Log.d(TAG, "tryConnectToDevice bonding invoked");
                Thread.sleep(3500);
            }
-           Thread.sleep(150);
+           Thread.sleep(300);
             invokeConnectA2DP(deviceOfIntrest);
             invokeConnectHeadset(deviceOfIntrest);
             Log.d(TAG, "tryConnectToDevice: connection invoked");

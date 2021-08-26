@@ -128,6 +128,12 @@ public class BTConnectionService extends Service {
         Intent notificationIntent = new Intent(this, MainActivity.class);
         PendingIntent pendingActivityIntent =
                 PendingIntent.getActivity(this, 0, notificationIntent, 0);
+
+
+        Intent stopServiceIntent = new Intent(Commander.COMMAND_STOP_COMMANDER);
+        PendingIntent pendingStopServiceIntent =
+                PendingIntent.getBroadcast(this, 3, stopServiceIntent, 0);
+
 //Заготовка на будущее_______________________________________
 //        Intent disconnectDeviceIntent = new Intent(Commander.COMMAND_USER_SEEKS_DISCONNECT);
 //        disconnectDeviceIntent.putExtra(BluetoothDevice.EXTRA_DEVICE, mManager.getConnectedDevices().get(0));
@@ -139,6 +145,7 @@ public class BTConnectionService extends Service {
                         .setContentText("BTSwitchService is active")
                         .setSmallIcon(R.drawable.ic_forground_bt_service)
                         .setContentIntent(pendingActivityIntent)
+                        .addAction(new NotificationCompat.Action(R.drawable.ic_stop_service,"STOPSERVICE",pendingStopServiceIntent))
                         .build();
     }
 
@@ -151,6 +158,10 @@ public class BTConnectionService extends Service {
         disconnectDeviceIntent.putExtra(BluetoothDevice.EXTRA_DEVICE, mManager.getConnectedDevices().get(0));
         PendingIntent pendingDisconnectIntent =
                 PendingIntent.getBroadcast(this, 2, disconnectDeviceIntent, 0);
+
+      Intent stopServiceIntent = new Intent(Commander.COMMAND_STOP_COMMANDER);
+      PendingIntent pendingStopServiceIntent =
+              PendingIntent.getBroadcast(this, 3, stopServiceIntent, 0);
 //___________________________________________________________________________________
       return   new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
               .setContentTitle("BTSwitch")
@@ -158,6 +169,7 @@ public class BTConnectionService extends Service {
               .setSmallIcon(R.drawable.ic_forground_bt_service)
               .setContentIntent(pendingActivityIntent)
               .addAction(new NotificationCompat.Action(R.drawable.ic_disconnect_device,"DISCONNECT DEVICE", pendingDisconnectIntent))
+              .addAction(new NotificationCompat.Action(R.drawable.ic_stop_service,"STOPSERVICE",pendingStopServiceIntent))
               .build();
     }
 

@@ -68,6 +68,12 @@ public class Commander {
         this.mReplier = replier;
         mSoundprofilesBroadcastReciever = new SoundprofilesBroadcastReciever();
         mCurrentSoundDeviceLD = mSoundprofilesBroadcastReciever.getCurrentBTSoundDeviceLivedata();
+        if(mManager.isConnectedViaThisProfile()){
+            BluetoothDevice currentDevice=mManager.getConnectedDevices().get(0);
+            if (currentDevice!=null) {
+                mCurrentSoundDeviceLD.postValue(currentDevice);
+            }
+        }
         mMainDispatcher= Completable.create(
                 (completableEmitter) -> {
 

@@ -1,26 +1,21 @@
 package com.uj.bluetoothswitch.serviceparts;
 
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.util.Log;
 
 import com.uj.bluetoothswitch.disposables.StringMessageIOProcessors;
 
-import org.jetbrains.annotations.NotNull;
-
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.reactivex.rxjava3.annotations.NonNull;
 import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.Observable;
-import io.reactivex.rxjava3.disposables.CompositeDisposable;
-import io.reactivex.rxjava3.observers.DisposableObserver;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import io.reactivex.rxjava3.subjects.PublishSubject;
 import io.reactivex.rxjava3.subjects.Subject;
@@ -33,8 +28,8 @@ public class BTListener implements IListener {
     private  Byte[] mKey;
     private UUID mUuid;
     private final BluetoothAdapter mAdapter=BluetoothAdapter.getDefaultAdapter();
-    private final PublishSubject<String> mExternalSenderHook =PublishSubject.create();
-    private  final PublishSubject<String> mExternalRecieverHook=PublishSubject.create();
+    private final PublishSubject<String> mExternalOutputHook =PublishSubject.create();
+    private  final PublishSubject<String> mExternalInputHook =PublishSubject.create();
     private final Subject<Object> mStopSignalSubject=PublishSubject.create();
     private final AtomicBoolean mIsConnected=new AtomicBoolean();
 
@@ -51,7 +46,7 @@ public class BTListener implements IListener {
             Completable.using(
                 ()->{
                     mAdapter.cancelDiscovery();
-                    Thread.sleep(500);
+                    Thread.sleep(150);
                     Log.d(TAG, "startListening: ПРобуем получить серверсокет");
                     BluetoothServerSocket SSocket=mAdapter.listenUsingRfcommWithServiceRecord(mName,mUuid);
                     BluetoothSocket socket=null;
@@ -74,27 +69,47 @@ public class BTListener implements IListener {
                                     .subscribe(Void-> {
                                         if(!emitter.isDisposed())emitter.onComplete();
                                     });
+
+
                             Observable.<String>create(em->{
-                                String msg=StringMessageIOProcessors.extract(inputStream,mKey);
+                                String msg="";
+                            try{
+                                   msg = StringMessageIOProcessors.extract(inputStream, mKey);
+                                }catch (IOException exc){
+                                    if(!emitter.isDisposed()){
+                                        emitter.onError(exc);
+                                    }
+                                }
                                 if(!em.isDisposed())em.onNext(msg);
                             })
                                     .subscribeOn(Schedulers.io())
                                     .subscribe(
-                                            (msg)->{mExternalRecieverHook.onNext(msg);
-                                                Log.d(TAG, "Msg recieved in listener: "+msg);},
+                                            (msg)->{
+                                                mExternalInputHook.onNext(msg);
+                                                Log.d(TAG, "Msg recieved in listener: "+msg+"on Thread: "+
+                                                        Thread.currentThread().getName());},
                                             (err)->{
                                                 Log.d(TAG, "Error occured in message recieving "+ err);
                                             }
                                     );
                                             //mExternalRecieverHook);
 
-                            mExternalSenderHook
-                                    .observeOn(Schedulers.io())
-                                    .map((msg)->{StringMessageIOProcessors.send(msg, outputStream, mKey);
-                                    return msg;})
+                            mExternalOutputHook
+                                    //.observeOn(Schedulers.io())
+                                    .subscribeOn(Schedulers.io())
+                                    .map((msg)->{
+
+                                        try{
+                                            StringMessageIOProcessors.send(msg, outputStream, mKey);
+                                        }catch (IOException exc){if(!emitter.isDisposed()) {
+                                        emitter.onError(exc);}
+                                        }
+                                    return msg;
+                                    })
                                     .subscribe(
                                     (msg)-> {
-                                        Log.d(TAG, "Message sended from listener: "+ msg);
+                                        Log.d(TAG, "Message sended from listener: "+ msg+" on Thread: " +
+                                               Thread.currentThread().getName() );
                                         },
                                     (err)->{
                                         Log.d(TAG, "Error ocured on sending from listener: "+err);
@@ -127,12 +142,13 @@ public class BTListener implements IListener {
     /** Получить коннектор для получения сообщений, он будет что то посылать только при включенном ресивере*/
     @Override
     public Observable<String> getExternalInputHook(){
-           return  mExternalRecieverHook.observeOn(Schedulers.io());
+           return mExternalInputHook;
     };
 
     @Override
     public Subject<String> getExternalOutputHook() {
-        return mExternalSenderHook;
+
+        return mExternalOutputHook;
     }
 
     @Override

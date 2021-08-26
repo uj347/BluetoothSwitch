@@ -114,7 +114,7 @@ public class BTInquirer implements IInquirer<BluetoothDevice> {
                                         }
 
                                         if (s.equals("YES")) {
-                                            Thread.sleep(100);
+                                            Thread.sleep(400);
                                             Log.d(TAG, "Answer YES is Aquired on Thread " + Thread.currentThread().getName());
                                             mProfileManager.tryConnectToDevice(whatAboutMAC).subscribe();
                                             if (!emitter.isDisposed()) emitter.onComplete();

@@ -1,4 +1,4 @@
-package com.uj.bluetoothswitch;
+package com.uj.bluetoothswitch.mainfragment;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -16,9 +16,11 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.Observer;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.uj.bluetoothswitch.MainActivity;
+import com.uj.bluetoothswitch.MainActivityViewModel;
+import com.uj.bluetoothswitch.R;
 import com.uj.bluetoothswitch.dbStuff.DeviceDAO;
 import com.uj.bluetoothswitch.dbStuff.DeviceEntity;
-import com.uj.bluetoothswitch.serviceparts.BTConnectionService;
 import com.uj.bluetoothswitch.serviceparts.Commander;
 
 import java.util.ArrayList;

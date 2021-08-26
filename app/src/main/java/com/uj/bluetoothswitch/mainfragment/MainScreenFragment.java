@@ -1,4 +1,4 @@
-package com.uj.bluetoothswitch;
+package com.uj.bluetoothswitch.mainfragment;
 
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
@@ -15,6 +15,9 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.Switch;
 
+import com.uj.bluetoothswitch.BluetoothSwitcherApp;
+import com.uj.bluetoothswitch.MainActivity;
+import com.uj.bluetoothswitch.R;
 import com.uj.bluetoothswitch.serviceparts.BTConnectionService;
 import com.uj.bluetoothswitch.serviceparts.Commander;
 

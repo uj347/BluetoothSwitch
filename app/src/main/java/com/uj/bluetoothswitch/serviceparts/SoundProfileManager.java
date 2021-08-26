@@ -109,12 +109,18 @@ public boolean isFullyConstruted(){
 }
 
     @Override
-    public boolean isConnected(String MAC) {
+    public boolean isConnectedToDevice(String MAC) {
     BluetoothDevice deviceOfIntrest= mAdapter.getRemoteDevice(MAC);
     return mA2dpProxy.getConnectedDevices().contains(deviceOfIntrest)
             ||mHeadsetProxy.getConnectedDevices().contains(deviceOfIntrest);
 
 }
+
+    @Override
+    public boolean isConnectedViaThisProfile() {
+       return !mHeadsetProxy.getConnectedDevices().isEmpty()
+               &&!mA2dpProxy.getConnectedDevices().isEmpty();
+    }
 
     @Override
     public synchronized List<BluetoothDevice> getConnectedDevices() {

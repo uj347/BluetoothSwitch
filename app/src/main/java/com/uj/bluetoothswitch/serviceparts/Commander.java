@@ -234,14 +234,26 @@ public class Commander {
                                     device.getBluetoothClass().getDeviceClass() == BluetoothClass.Device.PHONE_CELLULAR);
                 }).collect(Collectors.toSet());
         pairedDevices.remove(desirableBTSOUNDDevice);
+         if(mManager.isConnectedViaThisProfile()){
+            BluetoothDevice currentSoundDevice=mCurrentSoundDeviceLD.getValue();
+             if(currentSoundDevice!=null){
+                 if(!currentSoundDevice.equals(desirableBTSOUNDDevice)){
+                     mManager.tryDisconnectFromDevice(currentSoundDevice.getAddress()).blockingSubscribe();
+                 }else{
+                     Intent soundConnectedIntent=new Intent(Commander.STATE_LISTENING);
+                     soundConnectedIntent.putExtra(BluetoothDevice.EXTRA_DEVICE,currentSoundDevice);
+                     sendStateBroadcastForRecord(soundConnectedIntent);
+                     return;}
+             }
 
+         }
         mManager.tryConnectToDevice(desirableBTSOUNDDevice.getAddress()).blockingSubscribe();
         try {
             Thread.sleep(50);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        if (!mManager.isConnected(desirableBTSOUNDDevice.getAddress())) {
+        if (!mManager.isConnectedToDevice(desirableBTSOUNDDevice.getAddress())) {
             BluetoothDevice[] devices = pairedDevices.toArray(new BluetoothDevice[0]);
             mReplier.stopWaitingForInquiry();
 

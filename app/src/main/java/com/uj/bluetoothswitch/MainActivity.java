@@ -21,6 +21,8 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.Toast;
 
+import com.uj.bluetoothswitch.mainfragment.MainScreenFragmentDirections;
+
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "BlueSwitchMainActivity";
 

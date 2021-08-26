@@ -8,10 +8,11 @@ import io.reactivex.rxjava3.core.Completable;
 
 public interface IBluetoothProfileManager {
 
-    boolean isConnected (String MAC);
+    boolean isConnectedToDevice(String MAC);
     List<BluetoothDevice> getConnectedDevices();
      Completable tryConnectToDevice(String MAC);
     Completable tryDisconnectFromDevice(String MacToUnbind);
+    boolean isConnectedViaThisProfile();
 
 
 }

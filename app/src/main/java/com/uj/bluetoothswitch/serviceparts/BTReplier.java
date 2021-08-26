@@ -51,7 +51,7 @@ public class BTReplier  implements IReplier<BluetoothDevice>{
                                             if (s.equals(deviceOfIntrest.getAddress())) {
                                                 Thread.sleep(150);
                                                 outHook.onNext("YES");
-                                                if (mProfileManager.isConnected(deviceOfIntrest.getAddress()))
+                                                if (mProfileManager.isConnectedToDevice(deviceOfIntrest.getAddress()))
                                                 {
                                                     mProfileManager.tryDisconnectFromDevice(deviceOfIntrest.getAddress()).subscribe();
                                                 }

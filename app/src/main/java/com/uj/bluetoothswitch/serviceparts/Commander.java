@@ -13,6 +13,11 @@ import android.util.Log;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
+import com.uj.bluetoothswitch.serviceparts.connectionpart.IInquirer;
+import com.uj.bluetoothswitch.serviceparts.connectionpart.IReplier;
+import com.uj.bluetoothswitch.serviceparts.soundprofilepart.SoundProfileManager;
+import com.uj.bluetoothswitch.serviceparts.soundprofilepart.SoundprofilesBroadcastReciever;
+
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -55,6 +60,7 @@ public class Commander {
     private BroadcastReceiver commandsReceiver;
     private Intent lastKnownState;
     private MutableLiveData<BluetoothDevice> mCurrentSoundDeviceLD;
+    private final CompositeDisposable mDisposables= new CompositeDisposable();
 
 
 
@@ -161,6 +167,7 @@ public class Commander {
             if(!stateCheckerDispodable.isDisposed()){
                 stateCheckerDispodable.clear();
             }
+            stopInquiriesAndReplies();
             mServiceInstance.stopSelf();
             Log.d(TAG, "Main Discpatcher in Commander done its job");
 
@@ -186,43 +193,33 @@ public class Commander {
     }
 
     private void onWait() {
+        mDisposables.clear();
         Log.d(TAG, "onWait: mode is active");
         sendStateBroadcastForRecord(new Intent(STATE_IDLE));
-        mReplier.stopWaitingForInquiry();
-        mInquirer.stopInqueries();
+        stopInquiriesAndReplies();
     }
 
 
 
     private void onListen(BluetoothDevice currentBTSOUNDDevice) {
+        mDisposables.clear();
         Log.d(TAG, "onListen: mode is active with device: " + currentBTSOUNDDevice.getAddress());
-        mInquirer.stopInqueries();
-        mReplier.waitForInquiry(currentBTSOUNDDevice);
+        stopInquiries();
+        Disposable disp=mReplier.waitForInquiry(currentBTSOUNDDevice).subscribeOn(Schedulers.io()).subscribe(
+                ()-> Log.d(TAG, "Listen procedure is completed nformally"),
+                (err)-> Log.d(TAG, "Listen procedure completed with error: "+err.getMessage())
+        );
+
         Intent listeningStateIntent= new Intent (STATE_LISTENING);
         listeningStateIntent.putExtra(BluetoothDevice.EXTRA_DEVICE,currentBTSOUNDDevice);
         sendStateBroadcastForRecord(listeningStateIntent);
 
     }
 
-    public synchronized Intent getLastKnownState() {
-        return lastKnownState;
-    }
-
-    public LiveData<BluetoothDevice> getCurrentSoundDeviceLD() {
-        return mCurrentSoundDeviceLD;
-    }
-
-    private synchronized void setLastKnownState(Intent lastKnownState) {
-        this.lastKnownState = lastKnownState;
-    }
-    private void sendStateBroadcastForRecord(Intent intentToSend){
-        setLastKnownState(intentToSend);
-        mServiceInstance.sendBroadcast(intentToSend);
-
-    }
 
     private void onReaching(BluetoothDevice desirableBTSOUNDDevice) {
         Log.d(TAG, "In commander on Reaching, starting to check every paired device");
+        mDisposables.clear();
         Intent reachingStateIntent= new Intent(STATE_REACHING);
         reachingStateIntent.putExtra(BluetoothDevice.EXTRA_DEVICE,desirableBTSOUNDDevice);
         sendStateBroadcastForRecord(reachingStateIntent);
@@ -245,6 +242,12 @@ public class Commander {
              if(currentSoundDevice!=null){
                  if(!currentSoundDevice.equals(desirableBTSOUNDDevice)){
                      mManager.tryDisconnectFromDevice(currentSoundDevice.getAddress()).blockingSubscribe();
+                     try{
+                         Thread.sleep(2000);
+                     }catch(InterruptedException exc){
+                         Log.d(TAG, "Interrupted exception occured");
+                     }
+
                  }else{
                      Intent soundConnectedIntent=new Intent(Commander.STATE_LISTENING);
                      soundConnectedIntent.putExtra(BluetoothDevice.EXTRA_DEVICE,currentSoundDevice);
@@ -261,12 +264,36 @@ public class Commander {
         }
         if (!mManager.isConnectedToDevice(desirableBTSOUNDDevice.getAddress())) {
             BluetoothDevice[] devices = pairedDevices.toArray(new BluetoothDevice[0]);
-            mReplier.stopWaitingForInquiry();
+            stopReplies();
 
             if (devices.length > 0) {
-                mInquirer.makeInquiry(desirableBTSOUNDDevice.getAddress(), devices);
+               Disposable disposable=
+                       mInquirer.makeInquiries(desirableBTSOUNDDevice.getAddress(), devices).subscribeOn(Schedulers.io())
+                      // .blockingAwait();
+                       .subscribe(
+                       ()-> Log.d(TAG, "Inquiry succesfull"),
+                       (err)-> Log.d(TAG, "Inquiry completed with exception: "+ err.getMessage())
+
+               );
+
             }
         }
+    }
+    public synchronized Intent getLastKnownState() {
+        return lastKnownState;
+    }
+
+    public LiveData<BluetoothDevice> getCurrentSoundDeviceLD() {
+        return mCurrentSoundDeviceLD;
+    }
+
+    private synchronized void setLastKnownState(Intent lastKnownState) {
+        this.lastKnownState = lastKnownState;
+    }
+    private void sendStateBroadcastForRecord(Intent intentToSend){
+        setLastKnownState(intentToSend);
+        mServiceInstance.sendBroadcast(intentToSend);
+
     }
 
     private void checkIsSoundDevicesConnected(){
@@ -286,12 +313,14 @@ public class Commander {
         BluetoothDevice parcelableDevice=incomingIntent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
 
         if (intentAction.equals(COMMAND_SERVICE_STARTED)) {
-            List<BluetoothDevice> currentlyConnectedDevices = mManager.getConnectedDevices();
-            if (currentlyConnectedDevices.isEmpty()) {
-                Log.d(TAG, "No connected BTSOUND devices detected");
+            if(mManager.isConnectedViaThisProfile()){
+                Log.d(TAG, "Commander started with connected device");
+                onListen(mManager.getConnectedDevices().get(0));
+
+            }
+            else {
+                Log.d(TAG, "No conencted devices found on start");
                 onWait();
-            } else {
-                onListen(currentlyConnectedDevices.get(0));
             }
         }
         if (intentAction.equals(COMMAND_BTSOUND_CONNECTED)) {
@@ -320,6 +349,23 @@ public class Commander {
         }
 
 
+    }
+
+    private void stopReplies(){
+        if(mReplier!=null){
+            mReplier.stopWaitingForInquiry();
+        }
+    }
+
+    private void stopInquiries(){
+        if(mInquirer!=null){
+            mInquirer.stopInqueries();
+        }
+    }
+
+    private void stopInquiriesAndReplies(){
+        stopInquiries();
+        stopReplies();
     }
 
 }

@@ -1,4 +1,4 @@
-package com.uj.bluetoothswitch.serviceparts;
+package com.uj.bluetoothswitch.serviceparts.soundprofilepart;
 
 import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothDevice;
@@ -12,6 +12,8 @@ import android.util.Log;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
+
+import com.uj.bluetoothswitch.serviceparts.Commander;
 
 public class SoundprofilesBroadcastReciever extends BroadcastReceiver {
     private static  String TAG="SoundProfilesBroadcastReceiver";
@@ -51,7 +53,7 @@ public class SoundprofilesBroadcastReciever extends BroadcastReceiver {
             Intent resultingCustomIntent=new Intent();
             String actionToPass;
             if(extraState==BluetoothProfile.STATE_CONNECTED){
-                actionToPass=Commander.COMMAND_BTSOUND_CONNECTED;
+                actionToPass= Commander.COMMAND_BTSOUND_CONNECTED;
                 putDeviceToLiveData(extraDevice);
             }else{
                 actionToPass=Commander.COMMAND_BTSOUND_DISCONNECTED;

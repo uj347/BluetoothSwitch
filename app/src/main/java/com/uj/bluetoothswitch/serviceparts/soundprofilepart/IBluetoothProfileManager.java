@@ -1,4 +1,4 @@
-package com.uj.bluetoothswitch.serviceparts;
+package com.uj.bluetoothswitch.serviceparts.soundprofilepart;
 
 import android.bluetooth.BluetoothDevice;
 

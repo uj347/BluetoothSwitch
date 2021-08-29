@@ -6,7 +6,6 @@ import android.os.Bundle;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -14,18 +13,13 @@ import android.widget.TextView;
 import com.uj.bluetoothswitch.dbStuff.DeviceDB;
 import com.uj.bluetoothswitch.dbStuff.DeviceEntity;
 import com.uj.bluetoothswitch.serviceparts.BTConnectionService;
-import com.uj.bluetoothswitch.serviceparts.SoundProfileManager;
-import com.uj.bluetoothswitch.serviceparts.BTInquirer;
-import com.uj.bluetoothswitch.serviceparts.BTListener;
-import com.uj.bluetoothswitch.serviceparts.BTReplier;
-import com.uj.bluetoothswitch.serviceparts.Commander;
+import com.uj.bluetoothswitch.serviceparts.soundprofilepart.SoundProfileManager;
+import com.uj.bluetoothswitch.serviceparts.connectionpart.BTInquirer;
+import com.uj.bluetoothswitch.serviceparts.connectionpart.BTListener;
+import com.uj.bluetoothswitch.serviceparts.connectionpart.BTReplier;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-
-import io.reactivex.rxjava3.core.Observer;
 
 public class TestSiteActivity extends AppCompatActivity {
 
@@ -62,7 +56,7 @@ public class TestSiteActivity extends AppCompatActivity {
         adapter=BluetoothAdapter.getDefaultAdapter();
 
         man = new SoundProfileManager(this);
-        replier = new BTReplier(new BTListener(KEYPATTERN,MYUUID,NAME),man);
+        //replier = new BTReplier(new BTListener(KEYPATTERN,MYUUID,NAME),man);
         Intent serviceIntent=new Intent(this,BTConnectionService.class);
 
         //TODO Не забыть включить назад когда настрою менеджер
@@ -105,7 +99,7 @@ public class TestSiteActivity extends AppCompatActivity {
 //        man.tryUnbindFromDevice(TRONSMARTMAC).subscribe();
 //    }
     public void inquirer (View v){
-        inquirer.makeInquiry(TRONSMARTMAC,adapter.getRemoteDevice(PLANSHMAC));
+        inquirer.makeInquiries(TRONSMARTMAC,adapter.getRemoteDevice(PLANSHMAC));
     }
 
 

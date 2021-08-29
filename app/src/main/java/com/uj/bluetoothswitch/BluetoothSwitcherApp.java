@@ -26,6 +26,7 @@ import com.uj.bluetoothswitch.serviceparts.Commander;
 
 public class BluetoothSwitcherApp extends Application {
     private static final String TAG= "APP_CLASS";
+    public static final String APP_NAME="BTSWITCH";
     private static final String PHONEMAC="F8:C3:9E:8B:28:C6";
     private static final  String PLANSHMAC="74:D2:1D:6B:19:88";
     private static final String TRONSMARTMAC="FC:58:FA:C1:03:29";

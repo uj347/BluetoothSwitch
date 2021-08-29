@@ -17,6 +17,13 @@ import androidx.lifecycle.Observer;
 
 import com.uj.bluetoothswitch.MainActivity;
 import com.uj.bluetoothswitch.R;
+import com.uj.bluetoothswitch.serviceparts.connectionpart.BTClient;
+import com.uj.bluetoothswitch.serviceparts.connectionpart.BTInquirer;
+import com.uj.bluetoothswitch.serviceparts.connectionpart.BTListener;
+import com.uj.bluetoothswitch.serviceparts.connectionpart.BTReplier;
+import com.uj.bluetoothswitch.serviceparts.connectionpart.IInquirer;
+import com.uj.bluetoothswitch.serviceparts.connectionpart.IReplier;
+import com.uj.bluetoothswitch.serviceparts.soundprofilepart.SoundProfileManager;
 
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -66,8 +73,8 @@ public class BTConnectionService extends Service {
                 .filter(i -> mManager.isFullyConstruted())
                 .take(1)
                 .subscribe((obj) -> {
-                    mInquirer = new BTInquirer(new BTClient(MYKEYPATTERN, MYUUID, MYNAME), mManager);
-                    mReplier = new BTReplier(new BTListener(MYKEYPATTERN, MYUUID, MYNAME), mManager);
+                    mInquirer = new BTInquirer(mManager);
+                    mReplier = new BTReplier(mManager);
                     mCommander = new Commander(this, mManager, mInquirer, mReplier);
                     Log.d(TAG, "Service on start Command with startID: " + startId);
                     if (mCommander != null) {
@@ -165,7 +172,7 @@ public class BTConnectionService extends Service {
 //___________________________________________________________________________________
       return   new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
               .setContentTitle("BTSwitch")
-              .setContentText("BTSwitchService is active")
+              .setContentText("Currently connected: "+ mCurrentSoundDeviceLD.getValue())
               .setSmallIcon(R.drawable.ic_forground_bt_service)
               .setContentIntent(pendingActivityIntent)
               .addAction(new NotificationCompat.Action(R.drawable.ic_disconnect_device,"DISCONNECT DEVICE", pendingDisconnectIntent))

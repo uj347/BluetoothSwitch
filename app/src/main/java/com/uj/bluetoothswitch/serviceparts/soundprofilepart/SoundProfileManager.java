@@ -1,4 +1,4 @@
-package com.uj.bluetoothswitch.serviceparts;
+package com.uj.bluetoothswitch.serviceparts.soundprofilepart;
 
 import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothAdapter;
@@ -145,8 +145,8 @@ public boolean isFullyConstruted(){
             invokeConnectHeadset(deviceOfIntrest);
             Log.d(TAG, "tryConnectToDevice: connection invoked");
             if(!e.isDisposed()){e.onComplete();}
-            })
-            .subscribeOn(Schedulers.io());
+            });
+
         }
 
     @Override
@@ -157,8 +157,8 @@ public boolean isFullyConstruted(){
 //           Thread.sleep(200);
 //           invokeUnbind(sAdapter.getRemoteDevice(MAC));
            if(!e.isDisposed()){e.onComplete();}
-        })
-                .subscribeOn(Schedulers.io());
+        });
+                //.subscribeOn(Schedulers.io());
 //                .delay(50, TimeUnit.MILLISECONDS);
 
     }

@@ -1,12 +1,10 @@
 package com.uj.bluetoothswitch.serviceparts.connectionpart;
 
-import android.bluetooth.BluetoothDevice;
-
-import io.reactivex.rxjava3.core.Completable;
+import io.reactivex.rxjava3.core.Single;
 
 public interface  IInquirer<T> {
 
-Completable makeInquiries(String whatAboutMAC, T ... devicesToConnect);
+Single<Boolean> makeInquiries(String whatAboutMAC, T ... devicesToConnect);
 void stopInqueries();
 
 

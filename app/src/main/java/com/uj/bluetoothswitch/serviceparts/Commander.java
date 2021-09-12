@@ -4,373 +4,359 @@ package com.uj.bluetoothswitch.serviceparts;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
+import android.os.Environment;
 import android.util.Log;
+import android.util.Pair;
 
-import androidx.lifecycle.LiveData;
-import androidx.lifecycle.MutableLiveData;
-
+import com.uj.bluetoothswitch.serviceparts.broadcastreceivers.SoundprofilesBroadcastReciever;
+import com.uj.bluetoothswitch.serviceparts.connectionpart.BTInquirer;
+import com.uj.bluetoothswitch.serviceparts.connectionpart.BTReplier;
 import com.uj.bluetoothswitch.serviceparts.connectionpart.IInquirer;
 import com.uj.bluetoothswitch.serviceparts.connectionpart.IReplier;
 import com.uj.bluetoothswitch.serviceparts.soundprofilepart.SoundProfileManager;
-import com.uj.bluetoothswitch.serviceparts.soundprofilepart.SoundprofilesBroadcastReciever;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.annotations.NonNull;
 import io.reactivex.rxjava3.core.Completable;
-import io.reactivex.rxjava3.core.Observable;
+import io.reactivex.rxjava3.core.CompletableObserver;
 import io.reactivex.rxjava3.core.Observer;
+import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.disposables.Disposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
+import io.reactivex.rxjava3.subjects.BehaviorSubject;
+import io.reactivex.rxjava3.subjects.PublishSubject;
 
 public class Commander {
 
-    public static final String COMMAND_USER_SEEKS_CONNECT = "Commander_USER_SEEKS_CONNECT";
-    public static final String COMMAND_USER_SEEKS_DISCONNECT = "Commander_USER_SEEKS_DISCONNECT";
-    public static final String COMMAND_BTSOUND_CONNECTED = "Commander_BTSOUND_CONNECTED";
-    public static final String COMMAND_BTSOUND_DISCONNECTED = "Commander_BTSOUND_DISCONNECTED";
-    public static final String COMMAND_SERVICE_STARTED = "Commander_SERVICE_STARTED";
-    public static final String COMMAND_STOP_COMMANDER = "Commander_STOP";
-    public static final String STATE_IDLE = "Commander_STATE_IDLE";
-    public static final String STATE_LISTENING = "Commander_STATE_LISTENING";
-    public static final String STATE_REACHING = "Commander_STATE_REACHING";
-    public static final String STATE_DISABLING = "Commander_STATE_DISABLING";
 
+    private final static String TAG = "MAINCOMMANDER";
 
-
-
-
-    private final static String TAG = "COMMANDER";
-
-    private final IInquirer<BluetoothDevice> mInquirer;
-    private final IReplier<BluetoothDevice> mReplier;
+    private IInquirer<BluetoothDevice> mInquirer;
+    private IReplier<BluetoothDevice> mReplier;
     private final SoundProfileManager mManager;
     private final BTConnectionService mServiceInstance;
+    private final NotificationFactory mNotificationFactory;
     private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final SoundprofilesBroadcastReciever mSoundprofilesBroadcastReciever;
-    private BroadcastReceiver commandsReceiver;
-    private Intent lastKnownState;
-    private MutableLiveData<BluetoothDevice> mCurrentSoundDeviceLD;
-    private final CompositeDisposable mDisposables= new CompositeDisposable();
+    private SoundprofilesBroadcastReciever mSoundProfBR;
+    private final CompositeDisposable mMainDisposable = new CompositeDisposable();
+    private final CompositeDisposable mCommandDisposable = new CompositeDisposable();
+    private final PublishSubject<Pair<String, Completable>> mCommandSubject = PublishSubject.create();
 
 
-
-    private final Completable mMainDispatcher;
-
-    public Commander(BTConnectionService serviceInstance, SoundProfileManager manager, IInquirer<BluetoothDevice> inquirer, IReplier<BluetoothDevice> replier) {
-
-        this.mServiceInstance=serviceInstance;
-        this.mManager = manager;
-        this.mInquirer = inquirer;
-        this.mReplier = replier;
-        mSoundprofilesBroadcastReciever = new SoundprofilesBroadcastReciever();
-        mCurrentSoundDeviceLD = mSoundprofilesBroadcastReciever.getCurrentBTSoundDeviceLivedata();
-        if(mManager.isConnectedViaThisProfile()){
-            BluetoothDevice currentDevice=mManager.getConnectedDevices().get(0);
-            if (currentDevice!=null) {
-                mCurrentSoundDeviceLD.postValue(currentDevice);
-            }
-        }
-        mMainDispatcher= Completable.create(
-                (completableEmitter) -> {
-
-                    IntentFilter commandIntentFilter=new IntentFilter();
-                    commandIntentFilter.addAction(COMMAND_USER_SEEKS_CONNECT);
-                    commandIntentFilter.addAction(COMMAND_USER_SEEKS_DISCONNECT);
-                    commandIntentFilter.addAction(COMMAND_BTSOUND_CONNECTED);
-                    commandIntentFilter.addAction(COMMAND_BTSOUND_DISCONNECTED);
-                    commandIntentFilter.addAction(COMMAND_SERVICE_STARTED);
-                    commandIntentFilter.addAction(COMMAND_STOP_COMMANDER);
-
-
-                    commandsReceiver=new BroadcastReceiver() {
-                        @Override
-                        public void onReceive(Context context, Intent intent) {
-                            if (intent.getAction().equals(COMMAND_STOP_COMMANDER)) {
-                                if (commandsReceiver!=null){
-                                    mServiceInstance.unregisterReceiver(commandsReceiver);
-                                }
-                                if (!completableEmitter.isDisposed()) {
-                                    completableEmitter.onComplete();
-                                }
-                            } else {
-                                try {
-                                    processIntent(intent);
-                                } catch (NullParcelableDeviceException exc) {
-                                    Log.d(TAG, "One ugly motherFucker forget to pass device here");
-                                }
-                            }
-                        }
-                    };
-
-                    mServiceInstance.registerReceiver(commandsReceiver,commandIntentFilter);
-                    Log.d(TAG, "Commander: Command reciever registred");
-
-                }
-        )
-                .subscribeOn(Schedulers.computation());
-
+    public Commander(BTConnectionService serviceInstance) {
+        mServiceInstance = serviceInstance;
+        mManager = mServiceInstance.exposeSoundProfileManager();
+        mInquirer = new BTInquirer(mManager);
+        mReplier = new BTReplier(mManager);
+        mSoundProfBR = mServiceInstance.exposeSoundProfileBR();
+        mNotificationFactory = mServiceInstance.exposeNotificationfactory();
 
     }
 
 
-
-
-    /**
-     * Запустить мэйнДиспетчер этого командера, нужно буте выполнить при страрте сервиса
-     */
     public void startCommander() {
-
-        CompositeDisposable stateCheckerDispodable=new CompositeDisposable();
-        Observable.interval(2, TimeUnit.SECONDS)
+        mCommandSubject
                 .observeOn(Schedulers.newThread())
-                .map(integer->getLastKnownState())
-                .filter(state->state!=null)
-                .distinctUntilChanged(
-                        (intent, intent2) -> intent.getAction().equals(intent2.getAction())
-                )
-                .subscribe(
-                        new Observer<Intent>() {
-                            @Override
-                            public void onSubscribe(@NonNull Disposable d) {
-                               if(!stateCheckerDispodable.isDisposed())
-                                   stateCheckerDispodable.add(d);
-                            }
+                .filter(completable -> mManager.isFullyConstruted())
+                .subscribe(new Observer<Pair<String, Completable>>() {
+                    @Override
+                    public void onSubscribe(@NonNull Disposable d) {
+                        mMainDisposable.add(d);
+                    }
 
-                            @Override
-                            public void onNext(@NonNull Intent intent) {
-                                  mServiceInstance.sendBroadcast(intent);
-                                               }
+                    @Override
+                    public void onNext(@NonNull Pair<String, Completable> pair) {
+                        Log.d(TAG, "NExt command in mainDispatcher");
 
-                            @Override
-                            public void onError(@NonNull Throwable e) {
-                                Log.d(TAG, "onError: in StateChecker");
-                            }
+                        pair.second
+                                .subscribeOn(Schedulers.io())
+                                .doOnTerminate(()-> {
+                                    mCommandDisposable.clear();
+                                    Log.d(TAG, "Command disposable cleared ");
+                                })
+                                .subscribe(new CompletableObserver() {
+                                    @Override
+                                    public void onSubscribe(@NonNull Disposable d) {
 
-                            @Override
-                            public void onComplete() {
+                                        mCommandDisposable.add(d);
+                                        Log.d(TAG, "Command subscribed: " + pair.first);
+                                    }
 
-                            }
-                        }
-                );
+                                    @Override
+                                    public void onComplete() {
+                                        Log.d(TAG, "Command completed: " + pair.first);
+                                    }
 
-        mMainDispatcher.subscribe(() -> {
-            if(!stateCheckerDispodable.isDisposed()){
-                stateCheckerDispodable.clear();
-            }
-            stopInquiriesAndReplies();
-            mServiceInstance.stopSelf();
-            Log.d(TAG, "Main Discpatcher in Commander done its job");
+                                    @Override
+                                    public void onError(@NonNull Throwable e) {
+                                        Log.d(TAG, "Error occured in command" + pair.first);
+                                        onIdle();
 
-        });
-        Intent startIntent = new Intent(Commander.COMMAND_SERVICE_STARTED);
-        sendStateBroadcastForRecord(new Intent(STATE_IDLE));
-        mServiceInstance.sendBroadcast(startIntent);
-        checkIsSoundDevicesConnected();
-        mServiceInstance.registerReceiver(mSoundprofilesBroadcastReciever, SoundprofilesBroadcastReciever.sIntentFilter);
-
-        }
+                                    }
+                                });
 
 
-    /**
-     * Остановить мэйнДиспетчер, нужно будет запустить при остановке сервиса
-     */
-    public void stopCommander() {
-        mServiceInstance.unregisterReceiver(mSoundprofilesBroadcastReciever);
-        sendStateBroadcastForRecord(new Intent(STATE_DISABLING));
-        Intent stopIntent = new Intent(Commander.COMMAND_STOP_COMMANDER);
-        mServiceInstance.sendBroadcast(stopIntent);
+                    }
+
+                    @Override
+                    public void onError(@NonNull Throwable e) {
+                        Log.d(TAG, "Error occured in mainObservable: " + e.getMessage());
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        Log.d(TAG, "Main observable onComplete");
+                    }
+                });
 
     }
 
-    private void onWait() {
-        mDisposables.clear();
-        Log.d(TAG, "onWait: mode is active");
-        sendStateBroadcastForRecord(new Intent(STATE_IDLE));
+
+    public void onIdle() {
         stopInquiriesAndReplies();
+        mServiceInstance.setCurrentState(ServiceState.STATE_IDLE);
+        mNotificationFactory.postWithNoDevice();
+        Pair<String, Completable> command = new Pair<>("onIdle", Completable.never());
+        mCommandSubject.onNext(command);
     }
 
 
+    public void onReach(BluetoothDevice seekableSoundDevice) {
+        Log.d(TAG, "onReach with device:" + seekableSoundDevice);
+        stopInquiriesAndReplies();
+        mServiceInstance.setCurrentState(ServiceState.STATE_REACHING);
+        Pair<String, Completable> command = new Pair<>("onReach " + seekableSoundDevice,
+                Completable.create(
+                        emitter -> {
+                            AtomicBoolean independentInquiryRequired = new AtomicBoolean(true);
+                            Log.d(TAG, "onReach: enabling manual disconnect override");
+                            mServiceInstance.exposeBroadcastInterpreter()
+                                    .setManualDisconnectOverride(true);
+                            emitter.setCancellable(() ->
+                            {
+                                Log.d(TAG, "onReach: disabling manual disconnect override");
+                                mServiceInstance.exposeBroadcastInterpreter()
+                                        .setManualDisconnectOverride(false);
+                            });
+                            if (mManager.isConnectedViaThisProfile()) {
+                                Log.d(TAG, "onReach: Connected via this profile");
+                                List<BluetoothDevice> connectedDevices = mManager.getConnectedDevices();
+                                BluetoothDevice currentlyConnected =
+                                        connectedDevices.isEmpty() ? null : connectedDevices.get(0);
 
-    private void onListen(BluetoothDevice currentBTSOUNDDevice) {
-        mDisposables.clear();
-        Log.d(TAG, "onListen: mode is active with device: " + currentBTSOUNDDevice.getAddress());
-        stopInquiries();
-        Disposable disp=mReplier.waitForInquiry(currentBTSOUNDDevice).subscribeOn(Schedulers.io()).subscribe(
-                ()-> Log.d(TAG, "Listen procedure is completed nformally"),
-                (err)-> Log.d(TAG, "Listen procedure completed with error: "+err.getMessage())
-        );
+                                if (currentlyConnected != null) {
+                                    Log.d(TAG, "CurrentlyConnectedDevice: "+ currentlyConnected.getName());
+                                    independentInquiryRequired.set(false);
+                                    if (currentlyConnected.equals(seekableSoundDevice)) {
+                                        Log.d(TAG, "onReach: already connected to required device, proceeding on listen");
+                                        onListen(currentlyConnected);
+                                    } else {
+                                        mManager.tryDisconnectFromCurrentDevice().subscribe();
+//                                        mCommandDisposable.add(
+                                        mSoundProfBR
+                                                .getDisconnectedObservable()
+                                                .timeout(6, TimeUnit.SECONDS)
+                                                .take(1)
+                                                .blockingSubscribe(
+                                                        (device) -> {
+                                                            mManager
+                                                                    .tryConnectToSpecifiedDevice(seekableSoundDevice.getAddress())
+                                                                    .subscribe();
+                                                        },
+                                                        (err) -> {
+                                                            Log.d(TAG, "Disconnection from device doesn't occured" +
+                                                                    ", trying connect to new device anyway");
+                                                            mManager
+                                                                    .tryConnectToSpecifiedDevice(seekableSoundDevice.getAddress())
+                                                                    .subscribe();
+                                                        });
+//                                        );
 
-        Intent listeningStateIntent= new Intent (STATE_LISTENING);
-        listeningStateIntent.putExtra(BluetoothDevice.EXTRA_DEVICE,currentBTSOUNDDevice);
-        sendStateBroadcastForRecord(listeningStateIntent);
+//                                        mCommandDisposable.add(
+                                        mSoundProfBR
+                                                .getConnectedObservable()
+                                                .timeout(4, TimeUnit.SECONDS)
+                                                .take(1)
+                                                .blockingSubscribe(
+                                                        (device) -> {
+                                                            Log.d(TAG, "Successfully connected to device without any inquiries");
+                                                        },
+                                                        (err) -> {
+                                                            independentInquiryRequired.set(true);
+                                                            Log.d(TAG, "Connection to soundDevice without inquries doesn't occured, " +
+                                                                    "proceeding to inquiries");
 
+                                                        });
+//                                        );
+
+
+                                    }
+                                }
+
+                            }
+//TODO Впихнуть просьое прямое подклюение  к девайсу
+                            if (independentInquiryRequired.get()) {
+                                Log.d(TAG, "Starting independent Inquiries");
+                                Single.<Boolean>create(
+                                        sinEmmiter->{
+                                            mManager
+                                                    .tryConnectToSpecifiedDevice(seekableSoundDevice.getAddress())
+                                                    .blockingSubscribe();
+
+                                            mSoundProfBR
+                                                    .getConnectedObservable()
+                                                    .timeout(4, TimeUnit.SECONDS)
+                                                    .take(1)
+                                                    .blockingSubscribe(
+                                                            (device) -> {
+                                                                Log.d(TAG, "Successfully connected to device without any inquiries");
+                                                                if(device.equals(seekableSoundDevice)){
+                                                                    if(!sinEmmiter.isDisposed()){
+                                                                        sinEmmiter.onSuccess(true);
+                                                                    }
+                                                                }else{
+                                                                    if(!sinEmmiter.isDisposed()){
+                                                                        sinEmmiter.onSuccess(false);
+                                                                    }
+                                                                }
+                                                            },
+                                                            (err) -> {
+                                                                Log.d(TAG, "Connection to soundDevice without inquries doesn't occured, " +
+                                                                        "proceeding to inquiries");
+                                                                if(!sinEmmiter.isDisposed()){
+                                                                    sinEmmiter.onSuccess(false);
+                                                                }
+
+                                                            });
+                                        }
+                                        ).flatMap(
+                                                directConnection-> {
+                                          if (directConnection){
+                                              return Single.just(true);
+                                          }else{
+                                             return mInquirer
+                                                      .makeInquiries(seekableSoundDevice.getAddress(), prepareInquiryList(seekableSoundDevice)
+                                                              .toArray(new BluetoothDevice[1]));
+                                          }
+                                        }
+                                        )
+                                        .blockingSubscribe(
+                                                (result) -> {
+                                                    Log.d(TAG, "reach completed with result: " + result);
+                                                    if (!emitter.isDisposed()) {
+                                                       if(!result){
+                                                           onIdle();
+                                                           emitter.onComplete();
+                                                       }
+                                                    }
+                                                },
+                                                err -> {
+                                                    Log.d(TAG, "onReach: Completed with failure: " + err);
+                                                    if (!emitter.isDisposed()) {
+                                                        emitter.onError(err);
+                                                    }
+                                                }
+
+                                        );
+                            }
+                        }));
+        mCommandSubject.onNext(command);
     }
 
 
-    private void onReaching(BluetoothDevice desirableBTSOUNDDevice) {
-        Log.d(TAG, "In commander on Reaching, starting to check every paired device");
-        mDisposables.clear();
-        Intent reachingStateIntent= new Intent(STATE_REACHING);
-        reachingStateIntent.putExtra(BluetoothDevice.EXTRA_DEVICE,desirableBTSOUNDDevice);
-        sendStateBroadcastForRecord(reachingStateIntent);
+    public void onListen(BluetoothDevice deviceToListenWith) {
+        mServiceInstance.setCurrentState(ServiceState.STATE_LISTENING);
+        mNotificationFactory.postWithConectedDevice(deviceToListenWith);
+        stopInquiriesAndReplies();
+        Pair<String, Completable> command = new Pair<>("onListen " + deviceToListenWith,
+                mReplier.waitForInquiry(deviceToListenWith));
+        mCommandSubject.onNext(command);
 
-        Set<BluetoothDevice> pairedDevices = new HashSet<>(mAdapter.getBondedDevices());
-        pairedDevices = pairedDevices.stream()
-                .filter(device -> {
-                    return
-                            (device.getBluetoothClass().getDeviceClass() == BluetoothClass.Device.PHONE_CELLULAR ||
-                                    device.getBluetoothClass().getDeviceClass() == BluetoothClass.Device.PHONE_CORDLESS ||
-                                    device.getBluetoothClass().getDeviceClass() == BluetoothClass.Device.PHONE_ISDN ||
-                                    device.getBluetoothClass().getDeviceClass() == BluetoothClass.Device.PHONE_MODEM_OR_GATEWAY ||
-                                    device.getBluetoothClass().getDeviceClass() == BluetoothClass.Device.PHONE_SMART ||
-                                    device.getBluetoothClass().getDeviceClass() == BluetoothClass.Device.PHONE_UNCATEGORIZED ||
-                                    device.getBluetoothClass().getDeviceClass() == BluetoothClass.Device.PHONE_CELLULAR);
-                }).collect(Collectors.toSet());
-        pairedDevices.remove(desirableBTSOUNDDevice);
-         if(mManager.isConnectedViaThisProfile()){
-            BluetoothDevice currentSoundDevice=mCurrentSoundDeviceLD.getValue();
-             if(currentSoundDevice!=null){
-                 if(!currentSoundDevice.equals(desirableBTSOUNDDevice)){
-                     mManager.tryDisconnectFromDevice(currentSoundDevice.getAddress()).blockingSubscribe();
-                     try{
-                         Thread.sleep(2000);
-                     }catch(InterruptedException exc){
-                         Log.d(TAG, "Interrupted exception occured");
-                     }
+    }
 
-                 }else{
-                     Intent soundConnectedIntent=new Intent(Commander.STATE_LISTENING);
-                     soundConnectedIntent.putExtra(BluetoothDevice.EXTRA_DEVICE,currentSoundDevice);
-                     sendStateBroadcastForRecord(soundConnectedIntent);
-                     return;}
-             }
-
-         }
-        mManager.tryConnectToDevice(desirableBTSOUNDDevice.getAddress()).blockingSubscribe();
-        try {
-            Thread.sleep(50);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        if (!mManager.isConnectedToDevice(desirableBTSOUNDDevice.getAddress())) {
-            BluetoothDevice[] devices = pairedDevices.toArray(new BluetoothDevice[0]);
-            stopReplies();
-
-            if (devices.length > 0) {
-               Disposable disposable=
-                       mInquirer.makeInquiries(desirableBTSOUNDDevice.getAddress(), devices).subscribeOn(Schedulers.io())
-                      // .blockingAwait();
-                       .subscribe(
-                       ()-> Log.d(TAG, "Inquiry succesfull"),
-                       (err)-> Log.d(TAG, "Inquiry completed with exception: "+ err.getMessage())
-
-               );
-
+    public void onDisconnect(BluetoothDevice deviceToDisconnectFrom) {
+        if (mManager.isFullyConstruted()) {
+            if (deviceToDisconnectFrom != null) {
+                mCommandDisposable.add(
+                        mManager.tryDisconnectFromDevice(deviceToDisconnectFrom.getAddress())
+                                .subscribeOn(Schedulers.io())
+                                .subscribe(
+                                        () -> Log.d(TAG, "onDisconnect: Disconnection completed"),
+                                        (err) -> Log.d(TAG, "onDisconnect: error ocurred: " + err)
+                                )
+                );
+            } else {
+                mCommandDisposable.add(
+                        mManager.tryDisconnectFromCurrentDevice()
+                                .subscribeOn(Schedulers.io())
+                                .subscribe(
+                                        () -> Log.d(TAG, "onDisconnect: Disconnection completed"),
+                                        (err) -> Log.d(TAG, "onDisconnect: error ocurred: " + err)
+                                )
+                );
             }
+
         }
     }
-    public synchronized Intent getLastKnownState() {
-        return lastKnownState;
-    }
 
-    public LiveData<BluetoothDevice> getCurrentSoundDeviceLD() {
-        return mCurrentSoundDeviceLD;
-    }
-
-    private synchronized void setLastKnownState(Intent lastKnownState) {
-        this.lastKnownState = lastKnownState;
-    }
-    private void sendStateBroadcastForRecord(Intent intentToSend){
-        setLastKnownState(intentToSend);
-        mServiceInstance.sendBroadcast(intentToSend);
+    public void onStop() {
+        Log.d(TAG, "onStop command invoked");
+        disposeCommaderResources();
+        mServiceInstance.stopSelf();
 
     }
 
-    private void checkIsSoundDevicesConnected(){
-       List<BluetoothDevice>currentlyConnected=mManager.getConnectedDevices();
-       if (!currentlyConnected.isEmpty()) {
-           mCurrentSoundDeviceLD.postValue(currentlyConnected.get(0));
-           Intent soundConnectedIntent=new Intent(Commander.STATE_LISTENING);
-           soundConnectedIntent.putExtra(BluetoothDevice.EXTRA_DEVICE,currentlyConnected.get(0));
-       setLastKnownState(soundConnectedIntent);
-       }
-
+    public void disposeCommaderResources() {
+        Log.d(TAG, "Disposing commander resources");
+        stopInquiriesAndReplies();
+        mCommandDisposable.clear();
+        mMainDisposable.clear();
     }
 
-    private void processIntent(Intent incomingIntent) {
-        Log.d(TAG, "processing incoming Intent: "+incomingIntent.getAction());
-        String intentAction = incomingIntent.getAction();
-        BluetoothDevice parcelableDevice=incomingIntent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
 
-        if (intentAction.equals(COMMAND_SERVICE_STARTED)) {
-            if(mManager.isConnectedViaThisProfile()){
-                Log.d(TAG, "Commander started with connected device");
-                onListen(mManager.getConnectedDevices().get(0));
-
-            }
-            else {
-                Log.d(TAG, "No conencted devices found on start");
-                onWait();
-            }
-        }
-        if (intentAction.equals(COMMAND_BTSOUND_CONNECTED)) {
-            if (parcelableDevice == null) {
-                throw new NullParcelableDeviceException();
-            }
-            onListen(mAdapter.getRemoteDevice(parcelableDevice.getAddress()));
-        }
-
-        if (intentAction.equals(COMMAND_BTSOUND_DISCONNECTED)) {
-            onWait();
-        }
-        if(intentAction.equals(COMMAND_USER_SEEKS_DISCONNECT)){
-            if (parcelableDevice == null) {
-                throw new NullParcelableDeviceException();
-            }
-            mManager.tryDisconnectFromDevice(parcelableDevice.getAddress()).subscribe();
-            onWait();
-        }
-
-        if (intentAction.equals(COMMAND_USER_SEEKS_CONNECT)) {
-            if (parcelableDevice == null) {
-                throw new NullParcelableDeviceException();
-            }
-            onReaching(parcelableDevice);
-        }
-
-
-    }
-
-    private void stopReplies(){
-        if(mReplier!=null){
+    private void stopReplies() {
+        if (mReplier != null) {
             mReplier.stopWaitingForInquiry();
         }
     }
 
-    private void stopInquiries(){
-        if(mInquirer!=null){
+    private void stopInquiries() {
+        if (mInquirer != null) {
             mInquirer.stopInqueries();
         }
     }
 
-    private void stopInquiriesAndReplies(){
+    private void stopInquiriesAndReplies() {
         stopInquiries();
         stopReplies();
     }
 
-}
 
+    private Set<BluetoothDevice> prepareInquiryList(BluetoothDevice seekableSoundDevice) {
+        Set<BluetoothDevice> pairedDevices = new HashSet<>(mAdapter.getBondedDevices());
+        Set<BluetoothDevice> inquirySet = pairedDevices.stream()
+                .filter(device ->
 
-class NullParcelableDeviceException extends RuntimeException {
+                        device.getBluetoothClass().getDeviceClass() == BluetoothClass.Device.PHONE_CELLULAR ||
+                                device.getBluetoothClass().getDeviceClass() == BluetoothClass.Device.PHONE_CORDLESS ||
+                                device.getBluetoothClass().getDeviceClass() == BluetoothClass.Device.PHONE_ISDN ||
+                                device.getBluetoothClass().getDeviceClass() == BluetoothClass.Device.PHONE_MODEM_OR_GATEWAY ||
+                                device.getBluetoothClass().getDeviceClass() == BluetoothClass.Device.PHONE_SMART ||
+                                device.getBluetoothClass().getDeviceClass() == BluetoothClass.Device.PHONE_UNCATEGORIZED ||
+                                device.getBluetoothClass().getDeviceClass() == BluetoothClass.Device.PHONE_CELLULAR
+                )
+                .filter(device -> !device.equals(seekableSoundDevice))
+                .collect(Collectors.toSet());
+        return inquirySet;
+    }
 
 }

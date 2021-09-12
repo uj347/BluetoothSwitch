@@ -1,5 +1,6 @@
 package com.uj.bluetoothswitch;
 
+import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 
 import androidx.annotation.NonNull;
@@ -10,7 +11,6 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.uj.bluetoothswitch.dbStuff.DeviceDB;
 import com.uj.bluetoothswitch.dbStuff.DeviceEntity;
-import com.uj.bluetoothswitch.serviceparts.BTConnectionService;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -21,12 +21,14 @@ public class MainActivityViewModel extends ViewModel {
     private final Context mContext;
     private final DeviceDB mDeviceDB;
     private MutableLiveData<Set<DeviceEntity>> discoveredDevicesLD;
+    private MutableLiveData<Boolean> mIsServerRunningLD;
+    private MutableLiveData<BluetoothDevice> mCurrentlyConnectedSoundDeviceLD;
+    private final BluetoothSwitcherApp appContext;
 
     public BluetoothSwitcherApp getAppContext() {
         return appContext;
     }
 
-    private final BluetoothSwitcherApp appContext;
 
 
     public MainActivityViewModel(Context context) {
@@ -49,6 +51,20 @@ public class MainActivityViewModel extends ViewModel {
      }
     }
 
+    public MutableLiveData<Boolean> getIsServerRunningLD() {
+        if(mIsServerRunningLD ==null){
+            this.mIsServerRunningLD =new MutableLiveData<>(false);
+        }
+        return mIsServerRunningLD;
+    }
+
+
+    public MutableLiveData<BluetoothDevice> getCurrentlyConnectedSoundDeviceLD() {
+       if(mCurrentlyConnectedSoundDeviceLD==null){
+           this.mCurrentlyConnectedSoundDeviceLD=new MutableLiveData<>(null);
+       }
+        return mCurrentlyConnectedSoundDeviceLD;
+    }
 
 
 

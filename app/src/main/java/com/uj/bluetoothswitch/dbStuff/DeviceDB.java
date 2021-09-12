@@ -59,7 +59,6 @@ static volatile   private DeviceDB instance;
                     Log.d(TAG, "contents of DB: "+ list);
                 })
                 .blockingGet();
-        //TODO Возможно вот вся эта хуйня не работает, ну хотя бы не крашится и на том спасибо
 
 
         Stream.of(new ArrayList<DeviceEntity>(Arrays.asList(initialDevices)))

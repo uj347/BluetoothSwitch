@@ -18,6 +18,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.reactivex.rxjava3.core.Completable;
+import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import io.reactivex.rxjava3.subjects.PublishSubject;
 import io.reactivex.rxjava3.subjects.Subject;
@@ -39,8 +40,8 @@ private Subject<Object> proxyRecievedSubject= PublishSubject.create();
 private AtomicBoolean isConstructed=new AtomicBoolean();
 
 
-public SoundProfileManager(Context context){
-    Log.d(TAG, "SoundProfile: in constructor");
+    public SoundProfileManager(Context context){
+        Log.d(TAG, "SoundProfile: in constructor");
     Completable.create(e->{
         mAdapter.getProfileProxy(context, mServiceListener,BluetoothProfile.A2DP);
         mAdapter.getProfileProxy(context, mServiceListener,BluetoothProfile.HEADSET);
@@ -117,7 +118,7 @@ public boolean isFullyConstruted(){
     @Override
     public boolean isConnectedViaThisProfile() {
        return !mHeadsetProxy.getConnectedDevices().isEmpty()
-               &&!mA2dpProxy.getConnectedDevices().isEmpty();
+               ||!mA2dpProxy.getConnectedDevices().isEmpty();
     }
 
     @Override
@@ -131,7 +132,7 @@ public boolean isFullyConstruted(){
     }
 
     @Override
-    public synchronized Completable tryConnectToDevice(String MAC) {
+    public synchronized Completable tryConnectToSpecifiedDevice(String MAC) {
          BluetoothDevice deviceOfIntrest= mAdapter.getRemoteDevice(MAC);
         return Completable.create(e->{
            if (!mAdapter.getBondedDevices().contains(mAdapter.getRemoteDevice(MAC))) {
@@ -148,6 +149,17 @@ public boolean isFullyConstruted(){
             });
 
         }
+
+    @Override
+    public Completable tryDisconnectFromCurrentDevice() {
+        while (!this.isFullyConstruted()){};
+        List<BluetoothDevice> currentlyConectedDevices=this.getConnectedDevices();
+        return Observable.fromIterable(currentlyConectedDevices)
+                .concatMapCompletableDelayError(bluetoothDevice -> {
+                    return tryDisconnectFromDevice(bluetoothDevice.getAddress());
+                });
+
+    }
 
     @Override
     public synchronized Completable tryDisconnectFromDevice(String MAC) {
@@ -193,7 +205,15 @@ public boolean isFullyConstruted(){
         }
     }
 
-
+    @Override
+    public void disposeResources() {
+       if(mA2dpProxy!=null) {
+           mAdapter.closeProfileProxy(BluetoothProfile.A2DP, mA2dpProxy);
+       }
+       if(mHeadsetProxy!=null) {
+           mAdapter.closeProfileProxy(BluetoothProfile.HEADSET, mHeadsetProxy);
+       }
+    }
 
     private class A2dpServiceListener implements BluetoothProfile.ServiceListener{
         @Override

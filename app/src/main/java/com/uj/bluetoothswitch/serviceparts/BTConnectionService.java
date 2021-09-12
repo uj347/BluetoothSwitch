@@ -1,35 +1,28 @@
 package com.uj.bluetoothswitch.serviceparts;
 
-import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.app.Service;
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
-import android.os.Build;
 import android.os.IBinder;
 import android.util.Log;
 
-import androidx.core.app.NotificationCompat;
-import androidx.lifecycle.LiveData;
-import androidx.lifecycle.Observer;
+import androidx.lifecycle.MutableLiveData;
 
-import com.uj.bluetoothswitch.MainActivity;
-import com.uj.bluetoothswitch.R;
-import com.uj.bluetoothswitch.serviceparts.connectionpart.BTClient;
-import com.uj.bluetoothswitch.serviceparts.connectionpart.BTInquirer;
-import com.uj.bluetoothswitch.serviceparts.connectionpart.BTListener;
-import com.uj.bluetoothswitch.serviceparts.connectionpart.BTReplier;
-import com.uj.bluetoothswitch.serviceparts.connectionpart.IInquirer;
-import com.uj.bluetoothswitch.serviceparts.connectionpart.IReplier;
+import com.uj.bluetoothswitch.serviceparts.broadcastreceivers.SoundprofilesBroadcastReciever;
+import com.uj.bluetoothswitch.serviceparts.broadcastreceivers.UserCommandsBroadcastReceiver;
 import com.uj.bluetoothswitch.serviceparts.soundprofilepart.SoundProfileManager;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.core.Observable;
+import io.reactivex.rxjava3.disposables.CompositeDisposable;
 
 public class BTConnectionService extends Service {
 
@@ -38,57 +31,134 @@ public class BTConnectionService extends Service {
     private static final String MYNAME = "BTSWITCHER";
     private static final String PHONEMAC = "F8:C3:9E:8B:28:C6";
     private static final String PLANSHMAC = "74:D2:1D:6B:19:88";
-    private static final Byte[] MYKEYPATTERN = new Byte[]{125, 125, 125};
-    public   static final String NOTIFICATION_CHANNEL_NAME="BTSwitch Service Notification";
-    public static final String NOTIFICATION_CHANNEL_ID="BTSwitchChannel";
-    public static final int NOTIFICATION_ID=347;
+
+    public static final String COMMAND_USER_SEEKS_CONNECT = "Commander_USER_SEEKS_CONNECT";
+    public static final String COMMAND_USER_SEEKS_DISCONNECT = "Commander_USER_SEEKS_DISCONNECT";
+    public static final String COMMAND_USER_SEEKS_STOPSERVICE = "Commander_USER_SEEKS_STOPSERVICE";
+    public static final String COMMAND_USER_SEEKS_CURRENTSTATE = "Commander_USER_SEEKS_CURRENTSTATE";
+    public static final Set<String> USERCOMMAND_LIST=new HashSet<>();
+    static {
+        USERCOMMAND_LIST.add(COMMAND_USER_SEEKS_CONNECT);
+        USERCOMMAND_LIST.add(COMMAND_USER_SEEKS_DISCONNECT);
+        USERCOMMAND_LIST.add(COMMAND_USER_SEEKS_STOPSERVICE);
+        USERCOMMAND_LIST.add(COMMAND_USER_SEEKS_CURRENTSTATE);
+    }
+
+    public static final String STATE_IDLE = "Commander_STATE_IDLE";
+    public static final String STATE_LISTENING = "Commander_STATE_LISTENING";
+    public static final String STATE_REACHING = "Commander_STATE_REACHING";
+    public static final String STATE_DISABLING = "Commander_STATE_DISABLING";
+    public static final Map<ServiceState, String> STATE_COMMAND_MAP = new HashMap<>();
+
+    static {
+        STATE_COMMAND_MAP.put(ServiceState.STATE_IDLE, BTConnectionService.STATE_IDLE);
+        STATE_COMMAND_MAP.put(ServiceState.STATE_DISABLING, BTConnectionService.STATE_DISABLING);
+        STATE_COMMAND_MAP.put(ServiceState.STATE_LISTENING, BTConnectionService.STATE_LISTENING);
+        STATE_COMMAND_MAP.put(ServiceState.STATE_REACHING, BTConnectionService.STATE_REACHING);
+    }
+
+    private BluetoothDevice mCurrentSoundDevice;
+    private MutableLiveData<ServiceState> mCurrentStateLD = new MutableLiveData<>();
+    private  Commander mCommander;
+    private  SoundProfileManager mSoundProfileManager;
+    private  AwarenessComponent mAwarenessComponent;
+
+    private NotificationFactory mNotificationfactory;
+    private final SoundprofilesBroadcastReciever mSoundProfBroadcastReceiver
+            = new SoundprofilesBroadcastReciever();
+    private final UserCommandsBroadcastReceiver mUserCommandsBroadcastReceiver =
+            new UserCommandsBroadcastReceiver();
+    private BroadcastInterpreter mBroadcastInterpreter;
+    private final CompositeDisposable mDisposables = new CompositeDisposable();
+    private final AtomicBoolean mServiceRunning= new AtomicBoolean();
 
 
+    public SoundProfileManager exposeSoundProfileManager() {
+        return this.mSoundProfileManager;
+    }
+
+    public NotificationFactory exposeNotificationfactory() {
+        return mNotificationfactory;
+    }
+
+    public MutableLiveData<ServiceState> exposeCurrentStateLD() {
+        return mCurrentStateLD;
+    }
+
+    public void setCurrentState(ServiceState newState) {
+        Log.d(TAG, "new state posted: "+newState.name());
+        this.mCurrentStateLD.postValue(newState);
+    }
 
 
-    private SoundProfileManager mManager;
-    private IInquirer<BluetoothDevice> mInquirer;
-    private IReplier<BluetoothDevice> mReplier;
-    private Commander mCommander;
-    private LiveData<BluetoothDevice> mCurrentSoundDeviceLD;
-    private final Observer<BluetoothDevice> mCurrentDeviceObserver =new Observer<BluetoothDevice>() {
-        @Override
-        public void onChanged(BluetoothDevice device) {
-            if (device==null){
-                startForeground(NOTIFICATION_ID,getNoDeviceNotification());
-            }else{
-                startForeground(NOTIFICATION_ID,getHasDeviceNotification());
-            }
-        }
-    };
+    public SoundprofilesBroadcastReciever exposeSoundProfileBR() {
+        return mSoundProfBroadcastReceiver;
+    }
+
+    public UserCommandsBroadcastReceiver exposeUserCommandsBR() {
+        return mUserCommandsBroadcastReceiver;
+    }
+    public AwarenessComponent exposeAwarenessComponent (){
+        return  this.mAwarenessComponent;
+    }
+
+    public BroadcastInterpreter exposeBroadcastInterpreter() {
+        return mBroadcastInterpreter;
+    }
+
+
+    @Override
+    public void onCreate() {
+        mNotificationfactory= new NotificationFactory(this);
+        mSoundProfileManager= new SoundProfileManager(this);
+        mCommander= new Commander(this);
+        mBroadcastInterpreter = new BroadcastInterpreter(this);
+        mAwarenessComponent= new AwarenessComponent(this);
+    }
+
 
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        createNotificationChannel();
+        mDisposables.add(Observable.interval(150, TimeUnit.MILLISECONDS)
+                .filter(integer -> mSoundProfileManager.isFullyConstruted())
+                .take(1)
+                .timeout(10, TimeUnit.SECONDS)
+                .subscribe(
+                        integer -> {
+                           if (!mServiceRunning.get()){
+                                mCommander.startCommander();
+                                Log.d(TAG, "CommanderStarted");
+                                Log.d(TAG, "Notificationfactory created");
+                                mSoundProfBroadcastReceiver.registerThisReciver(this);
+                                mUserCommandsBroadcastReceiver.registerThisReciver(this);
+                                Log.d(TAG, "Receivers registered");
+                                mBroadcastInterpreter.startInterpreter();
+                                Log.d(TAG, "BroadcastInterpreter Started");
+                                mAwarenessComponent.startAwarenessComponent();
+                                Log.d(TAG, "Awareness Component Stared");
+                                List<BluetoothDevice> connectedDevices = mSoundProfileManager.getConnectedDevices();
+                                BluetoothDevice currentDevice =
+                                        connectedDevices.isEmpty() ? null : connectedDevices.get(0);
 
-        mManager = new SoundProfileManager(this);
-        Observable
-                .interval(250, TimeUnit.MILLISECONDS)
-                .filter(i -> mManager.isFullyConstruted())
-                .take(1)
-                .subscribe((obj) -> {
-                    mInquirer = new BTInquirer(mManager);
-                    mReplier = new BTReplier(mManager);
-                    mCommander = new Commander(this, mManager, mInquirer, mReplier);
-                    Log.d(TAG, "Service on start Command with startID: " + startId);
-                    if (mCommander != null) {
-                        Log.d(TAG, "onStartCommand: Starting commander on Thread: "+ Thread.currentThread().getName());
-                        mCommander.startCommander();
-                        mCurrentSoundDeviceLD=mCommander.getCurrentSoundDeviceLD();
-                        startForeground(NOTIFICATION_ID, getNoDeviceNotification());
-                    }
-                });
-        Observable.interval(450,TimeUnit.MILLISECONDS)
-                .filter(i->mCurrentSoundDeviceLD!=null)
-                .take(1)
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(i->mCurrentSoundDeviceLD.observeForever(mCurrentDeviceObserver));
+                                Log.d(TAG, "Deciding startMode");
+                                if (currentDevice != null) {
+                                    mCommander.onListen(currentDevice);
+                                    mServiceRunning.set(true);
+
+                                } else {
+                                    mCommander.onIdle();
+                                    mServiceRunning.set(true);
+                                }
+                            }else{
+                               Log.d(TAG, "Shallow on start service command occured");
+                           }
+                        },
+                        err -> {
+                            Log.d(TAG, "Starting of service failed, reason: " + err);
+                            BTConnectionService.this.onDestroy();
+                        }
+                ));
         return Service.START_STICKY;
 
     }
@@ -96,20 +166,16 @@ public class BTConnectionService extends Service {
 
     @Override
     public void onDestroy() {
+        setCurrentState(ServiceState.STATE_DISABLING);
+        sendBroadcast(new Intent(STATE_DISABLING));
+        mServiceRunning.set(false);
         Log.d(TAG, "In service on destroy");
-        if (mCommander != null) {
-            if(mCommander.getLastKnownState()!=null){
-                if(!mCommander.getLastKnownState()
-                        .getAction()
-                        .equals(Commander.STATE_DISABLING)){
-                    mCommander.stopCommander();
-                }
-            }
-
-        }
-        if(mCurrentSoundDeviceLD!=null){
-            mCurrentSoundDeviceLD.removeObserver(mCurrentDeviceObserver);
-        }
+        mBroadcastInterpreter.stopInterpreter();
+        mAwarenessComponent.stopAwarenessComponent();
+        unregisterReceiver(mSoundProfBroadcastReceiver);
+        unregisterReceiver(mUserCommandsBroadcastReceiver);
+        mDisposables.clear();
+        mSoundProfileManager.disposeResources();
         super.onDestroy();
     }
 
@@ -119,70 +185,20 @@ public class BTConnectionService extends Service {
 
     }
 
-    private void createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            CharSequence name = NOTIFICATION_CHANNEL_NAME;
-            String description = "Channel for BTSwitch Service Notitfications";
-            int importance = NotificationManager.IMPORTANCE_LOW;
-            NotificationChannel channel = new NotificationChannel(NOTIFICATION_CHANNEL_ID, name, importance);
-            channel.setDescription(description);
-            NotificationManager notificationManager = getSystemService(NotificationManager.class);
-            notificationManager.createNotificationChannel(channel);
-        }
-    }
 
-    private Notification getNoDeviceNotification(){
-        Intent notificationIntent = new Intent(this, MainActivity.class);
-        PendingIntent pendingActivityIntent =
-                PendingIntent.getActivity(this, 0, notificationIntent, 0);
-
-
-        Intent stopServiceIntent = new Intent(Commander.COMMAND_STOP_COMMANDER);
-        PendingIntent pendingStopServiceIntent =
-                PendingIntent.getBroadcast(this, 3, stopServiceIntent, 0);
-
-//Заготовка на будущее_______________________________________
-//        Intent disconnectDeviceIntent = new Intent(Commander.COMMAND_USER_SEEKS_DISCONNECT);
-//        disconnectDeviceIntent.putExtra(BluetoothDevice.EXTRA_DEVICE, mManager.getConnectedDevices().get(0));
-//        PendingIntent pendingDisconnectIntent =
-//                PendingIntent.getBroadcast(this, 0, notificationIntent, 0);
-//___________________________________________________________________________________
-       return   new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
-                        .setContentTitle("BTSwitch")
-                        .setContentText("BTSwitchService is active")
-                        .setSmallIcon(R.drawable.ic_forground_bt_service)
-                        .setContentIntent(pendingActivityIntent)
-                        .addAction(new NotificationCompat.Action(R.drawable.ic_stop_service,"STOPSERVICE",pendingStopServiceIntent))
-                        .build();
-    }
-
-  private Notification  getHasDeviceNotification(){
-      Intent notificationIntent = new Intent(this, MainActivity.class);
-      PendingIntent pendingActivityIntent =
-              PendingIntent.getActivity(this, 0, notificationIntent, 0);
-//Заготовка на будущее_______________________________________
-        Intent disconnectDeviceIntent = new Intent(Commander.COMMAND_USER_SEEKS_DISCONNECT);
-        disconnectDeviceIntent.putExtra(BluetoothDevice.EXTRA_DEVICE, mManager.getConnectedDevices().get(0));
-        PendingIntent pendingDisconnectIntent =
-                PendingIntent.getBroadcast(this, 2, disconnectDeviceIntent, 0);
-
-      Intent stopServiceIntent = new Intent(Commander.COMMAND_STOP_COMMANDER);
-      PendingIntent pendingStopServiceIntent =
-              PendingIntent.getBroadcast(this, 3, stopServiceIntent, 0);
-//___________________________________________________________________________________
-      return   new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
-              .setContentTitle("BTSwitch")
-              .setContentText("Currently connected: "+ mCurrentSoundDeviceLD.getValue())
-              .setSmallIcon(R.drawable.ic_forground_bt_service)
-              .setContentIntent(pendingActivityIntent)
-              .addAction(new NotificationCompat.Action(R.drawable.ic_disconnect_device,"DISCONNECT DEVICE", pendingDisconnectIntent))
-              .addAction(new NotificationCompat.Action(R.drawable.ic_stop_service,"STOPSERVICE",pendingStopServiceIntent))
-              .build();
+    public Commander exposeCommander() {
+        return mCommander;
     }
 
 
 }
 
+enum ServiceState {
+    STATE_IDLE,
+    STATE_LISTENING,
+    STATE_REACHING,
+    STATE_DISABLING
+}
 
 
 

@@ -3,6 +3,7 @@ package com.uj.bluetoothswitch.mainfragment;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -21,6 +22,7 @@ import com.uj.bluetoothswitch.MainActivityViewModel;
 import com.uj.bluetoothswitch.R;
 import com.uj.bluetoothswitch.dbStuff.DeviceDAO;
 import com.uj.bluetoothswitch.dbStuff.DeviceEntity;
+import com.uj.bluetoothswitch.serviceparts.BTConnectionService;
 import com.uj.bluetoothswitch.serviceparts.Commander;
 
 import java.util.ArrayList;
@@ -29,7 +31,7 @@ import java.util.List;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
 public class RememberedDevicesRecyclerAdapter extends RecyclerView.Adapter  {
-
+public static final String TAG="RememberedDevicesRV";
     private MainActivity activityContext;
     private MainActivityViewModel mMainViewModel;
     private List<DeviceEntity> recyclerContents= new ArrayList<>();
@@ -106,9 +108,10 @@ public class RememberedDevicesRecyclerAdapter extends RecyclerView.Adapter  {
             @Override
             public void onClick(View v) {
                 String macOfDevice=MyViewHolder.this.bluetoothDevice.macAdress;
-                Intent intentForService=new Intent(Commander.COMMAND_USER_SEEKS_CONNECT);
+                Intent intentForService=new Intent(BTConnectionService.COMMAND_USER_SEEKS_CONNECT);
                 intentForService.putExtra(BluetoothDevice.EXTRA_DEVICE,
                         BluetoothAdapter.getDefaultAdapter().getRemoteDevice(macOfDevice));
+                Log.d(TAG, "broadcasting intent to reach device: "+intentForService.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) );
                 mMainViewModel.getAppContext().sendBroadcast(intentForService);
                 }
         });

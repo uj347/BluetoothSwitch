@@ -12,14 +12,9 @@ import java.util.ArrayList;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.reactivex.rxjava3.annotations.NonNull;
-import io.reactivex.rxjava3.core.Completable;
-import io.reactivex.rxjava3.core.CompletableObserver;
 import io.reactivex.rxjava3.core.Observable;
-import io.reactivex.rxjava3.core.Observer;
+import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
-import io.reactivex.rxjava3.disposables.Disposable;
-import io.reactivex.rxjava3.schedulers.Schedulers;
 
 public class BTInquirer implements IInquirer<BluetoothDevice> {
     private final static String TAG = "BTInquirer";
@@ -41,15 +36,6 @@ public class BTInquirer implements IInquirer<BluetoothDevice> {
     @Override
     public void stopInqueries() {
         mStopSignal.set(true);
-//        for (BTClient client:mCurrentBTClients) {
-//            if (client!=null){
-//                try {
-//                    client.stopConnection();
-//                }catch(IOException exc){
-//                    Log.d(TAG, "Error in closing connection on inquirer: "+ exc.getMessage());
-//                }
-//            }
-//        }
         if (!mDisposables.isDisposed()) {
             mDisposables.clear();
         }
@@ -57,48 +43,55 @@ public class BTInquirer implements IInquirer<BluetoothDevice> {
 
 
     @Override
-    public Completable makeInquiries(String whatAboutMAC, BluetoothDevice... devicesToConnect) {
+    public Single<Boolean> makeInquiries(String whatAboutMAC, BluetoothDevice... devicesToConnect) {
         mFoundFlag.set(false);
         mStopSignal.set(false);
         return Observable.fromArray(devicesToConnect)
-                .concatMapCompletableDelayError(device -> {
-                    if (mFoundFlag.get()) {
-                        return Completable.complete();
-                    }
-                    if (mStopSignal.get()) {
-                        return Completable.complete();
-                    }
-                    return makeSingleInquiry(whatAboutMAC, device);
-                })
-                .doOnTerminate(() -> {
-                    mFoundFlag.set(false);
-                    mStopSignal.set(false);
-                });
+                .concatMapSingle(device -> makeSingleInquiry(whatAboutMAC,device))
+                .filter(result->result)
+                .first(false);
+//                .concatMapCompletableDelayError(device -> {
+//                    if (mFoundFlag.get()) {
+//                        return Completable.complete();
+//                    }
+//                    if (mStopSignal.get()) {
+//                        return Completable.complete();
+//                    }
+//                    return makeSingleInquiry(whatAboutMAC, device);
+//                })
+//                .doOnTerminate(() -> {
+//                    mFoundFlag.set(false);
+//                    mStopSignal.set(false);
+//                });
     }
 
-    private Completable makeSingleInquiry(String whatAboutMAC, BluetoothDevice deviceToConnect) {
 
-        return Completable.create(emitter -> {
+    private Single<Boolean> makeSingleInquiry(String whatAboutMAC, BluetoothDevice deviceToConnect) {
+
+        return Single.<Boolean>create(emitter -> {
 
             Log.d(TAG, "Starting inquery to: " + deviceToConnect.getName() +
                     " about: " + whatAboutMAC);
             BTClient btClient = new BTClient(mUuid, BluetoothSwitcherApp.APP_NAME);
             mCurrentBTClients.add(btClient);
-
-                    btClient
-                            .startConnectionToSpecifiedMAC(deviceToConnect.getAddress())
-
-                            //todo NB
-                            .blockingSubscribe(
-                                    () -> {
-                                        Log.d(TAG, "Client connection connected succesfully");
-                                    },
-                                    (err) -> {
-                                        Log.d(TAG, "Error occured in client connection: " + err.getMessage());
-                                    }
-                            );
             emitter.setCancellable(btClient::stopConnection);
-            Log.d(TAG, "Connected to device: " + deviceToConnect.getName());
+
+            btClient
+                    .startConnectionToSpecifiedMAC(deviceToConnect.getAddress())
+
+                    .subscribe(
+                            () -> {
+                                Log.d(TAG, "Client connection connected succesfully");
+                                Log.d(TAG, "Connected to device: " + deviceToConnect.getName());
+
+                            },
+                            (err) -> {
+                                Log.d(TAG, "Error occured in client connection: " + err.getMessage());
+                                if(!emitter.isDisposed()){
+                                    emitter.onSuccess(false);
+                                }
+                            }
+                    );
 
             try {
 
@@ -113,18 +106,76 @@ public class BTInquirer implements IInquirer<BluetoothDevice> {
                     Log.d(TAG, "Recieved answer: " + answer);
                     if (answer.trim().equals("YES")) {
                         Thread.sleep(900);
-                        mProfileManager.tryConnectToDevice(whatAboutMAC).blockingSubscribe();
-                        mFoundFlag.set(true);
-                        emitter.onComplete();
+                        mProfileManager.tryConnectToSpecifiedDevice(whatAboutMAC).blockingSubscribe();
+                       // mFoundFlag.set(true);
+                        if(!emitter.isDisposed()) {
+                            emitter.onSuccess(true);
+                        }
+                    }else{
+                        if(!emitter.isDisposed()) {
+                            emitter.onSuccess(false);
+                        }
                     }
                 }
             } catch (IOException | InterruptedException exc) {
                 if (!emitter.isDisposed()) {
                     Log.d(TAG, " Exception occured+ " + exc.getMessage());
-                    emitter.onError(exc);
+                    emitter.onSuccess(false);
                 }
             }
         });
     }
+//    private Completable makeSingleInquiry(String whatAboutMAC, BluetoothDevice deviceToConnect) {
+//
+//        return Completable.create(emitter -> {
+//
+//            Log.d(TAG, "Starting inquery to: " + deviceToConnect.getName() +
+//                    " about: " + whatAboutMAC);
+//            BTClient btClient = new BTClient(mUuid, BluetoothSwitcherApp.APP_NAME);
+//            mCurrentBTClients.add(btClient);
+//            emitter.setCancellable(btClient::stopConnection);
+//
+//                    btClient
+//                            .startConnectionToSpecifiedMAC(deviceToConnect.getAddress())
+//
+//                            .subscribe(
+//                                    () -> {
+//                                        Log.d(TAG, "Client connection connected succesfully");
+//                                    },
+//                                    (err) -> {
+//                                        Log.d(TAG, "Error occured in client connection: " + err.getMessage());
+//                                        if(!emitter.isDisposed()){
+//                                            emitter.onError(err);
+//                                        }
+//                                    }
+//                            );
+//            Log.d(TAG, "Connected to device: " + deviceToConnect.getName());
+//
+//            try {
+//
+//                StringInputStream stringInputStream =
+//                        new StringInputStream(btClient.getInputStream());
+//                StringOutputStream stringOutputStream =
+//                        new StringOutputStream(btClient.getOutputStream());
+//                while (!emitter.isDisposed()) {
+//                    Log.d(TAG, "Sending message: " + whatAboutMAC);
+//                    stringOutputStream.writeString(whatAboutMAC);
+//                    String answer = stringInputStream.readString();
+//                    Log.d(TAG, "Recieved answer: " + answer);
+//                    if (answer.trim().equals("YES")) {
+//                        Thread.sleep(900);
+//                        mProfileManager.tryConnectToSpecifiedDevice(whatAboutMAC).blockingSubscribe();
+//                        mFoundFlag.set(true);
+//                        emitter.onComplete();
+//                    }
+//                }
+//            } catch (IOException | InterruptedException exc) {
+//                if (!emitter.isDisposed()) {
+//                    Log.d(TAG, " Exception occured+ " + exc.getMessage());
+//                    emitter.onError(exc);
+//                }
+//            }
+//        });
+//    }
 }
 

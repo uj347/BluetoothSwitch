@@ -7,6 +7,8 @@ import android.os.Bundle;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.ViewModel;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.view.LayoutInflater;
@@ -17,9 +19,9 @@ import android.widget.Switch;
 
 import com.uj.bluetoothswitch.BluetoothSwitcherApp;
 import com.uj.bluetoothswitch.MainActivity;
+import com.uj.bluetoothswitch.MainActivityViewModel;
 import com.uj.bluetoothswitch.R;
 import com.uj.bluetoothswitch.serviceparts.BTConnectionService;
-import com.uj.bluetoothswitch.serviceparts.Commander;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -32,6 +34,9 @@ public class MainScreenFragment extends Fragment {
     private Button mDisconnectButton;
     private BluetoothSwitcherApp appContext;
     private Button mToggleServiceButton;
+    private LiveData<Boolean>mIsServerRunningLD;
+    private LiveData<BluetoothDevice>mCurrentlyConnectedDeviceLD;
+    private MainActivityViewModel mMainActivityViewModel;
 
 
     @Override
@@ -61,25 +66,30 @@ public class MainScreenFragment extends Fragment {
     public void onStart() {
         super.onStart();
         mMainActivity = (MainActivity) getActivity();
+        mMainActivityViewModel=mMainActivity.getMainActivityVM();
+        mIsServerRunningLD=mMainActivityViewModel.getIsServerRunningLD();
+        mCurrentlyConnectedDeviceLD=mMainActivityViewModel.getCurrentlyConnectedSoundDeviceLD();
+
+
         mDevicesRecyclerView = (RecyclerView) mMainActivity.findViewById(R.id.devicesRecycler);
         mDevicesRecyclerView.setAdapter(new RememberedDevicesRecyclerAdapter(mMainActivity,
                 mMainActivity.getMainActivityVM().getDeviceDb().deviceDAO()));
         appContext = mMainActivity.getMainActivityVM().getAppContext();
-        appContext.getIsServerRunningLD()
+        mMainActivityViewModel.getIsServerRunningLD()
                 .observe(this, state -> {
                     if (mServiceStateSwitch != null) {
                         mServiceStateSwitch.setChecked(state);
                     }
                 });
 
-        appContext.getCurrentlyConnectedSoundDevice().observe(this, device -> {
+        mCurrentlyConnectedDeviceLD.observe(this, device -> {
             if (device == null) {
                 mDisconnectButton.setEnabled(false);
             } else {
                 mDisconnectButton.setEnabled(true);
                 mDisconnectButton.setOnClickListener((view) -> {
-                    Intent disconnectIntent = new Intent(Commander.COMMAND_USER_SEEKS_DISCONNECT);
-                    disconnectIntent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
+                    Intent disconnectIntent = new Intent(BTConnectionService.COMMAND_USER_SEEKS_DISCONNECT);
+
                     mMainActivity.sendBroadcast(disconnectIntent);
                 });
             }
@@ -90,13 +100,15 @@ public class MainScreenFragment extends Fragment {
     public void toAddDeviceOnClick(View view) {
         mMainActivity.getNavController().navigate(MainScreenFragmentDirections.actionMainScreenFragmentToAddNewDeviceFragment());
     }
+
     public void toggleServiceOnClick(View view){
-        if(mServiceStateSwitch.isChecked()){
-            mMainActivity.sendBroadcast(new Intent(Commander.COMMAND_STOP_COMMANDER));
+        boolean isServiceRunning=mIsServerRunningLD.getValue();
+        if (isServiceRunning){
+            mMainActivity.sendBroadcast(new Intent(BTConnectionService.COMMAND_USER_SEEKS_STOPSERVICE));
+        }else{
+            mMainActivity.startService(new Intent(mMainActivity,BTConnectionService.class));
         }
-        else{
-           appContext.startService(new Intent(appContext, BTConnectionService.class));
-        }
+
     }
 
 }

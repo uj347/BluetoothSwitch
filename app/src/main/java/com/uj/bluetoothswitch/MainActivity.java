@@ -5,37 +5,57 @@ import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
-import androidx.navigation.NavHost;
 import androidx.navigation.Navigation;
-import androidx.recyclerview.widget.RecyclerView;
 
-import android.app.LauncherActivity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
 import com.uj.bluetoothswitch.mainfragment.MainScreenFragmentDirections;
+import com.uj.bluetoothswitch.serviceparts.BTConnectionService;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "BlueSwitchMainActivity";
 
-    private MainActivityViewModel viewModel;
+    private MainActivityViewModel mViewModel;
     private NavController navController;
+    private MutableLiveData<Boolean> mIsServerRunningLD;
+    private MutableLiveData<BluetoothDevice> mCurrentlyConnectedSoundDeviceLD;
+    private static final IntentFilter stateIntentFilter=new IntentFilter();
+    static {stateIntentFilter.addAction(BTConnectionService.STATE_DISABLING);
+        stateIntentFilter.addAction(BTConnectionService.STATE_IDLE);
+        stateIntentFilter.addAction(BTConnectionService.STATE_LISTENING);
+        stateIntentFilter.addAction(BTConnectionService.STATE_REACHING);
+    };
+
+    private final BroadcastReceiver serverStateBroadcastReceiver=new ServiceStateBR();
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-        viewModel = new ViewModelProvider(this, new MainActivityViewModel.MainActivityVMFactory(this))
+        mViewModel = new ViewModelProvider(this, new MainActivityViewModel.MainActivityVMFactory(this))
                 .get(MainActivityViewModel.class);
+        this.mCurrentlyConnectedSoundDeviceLD=mViewModel.getCurrentlyConnectedSoundDeviceLD();
+        this.mIsServerRunningLD=mViewModel.getIsServerRunningLD();
+
+        Intent serviceIntent=new Intent(this,BTConnectionService.class);
+        registerReceiver(serverStateBroadcastReceiver,stateIntentFilter);
+        startService(serviceIntent);
+        sendBroadcast(new Intent(BTConnectionService.COMMAND_USER_SEEKS_CURRENTSTATE));
+        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+
+
         setContentView(R.layout.activity_main);
         navController = Navigation.findNavController(this, R.id.main_activity_host_fragment);
         if (!BluetoothAdapter.getDefaultAdapter().isEnabled()) {
@@ -49,12 +69,13 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+
     public NavController getNavController() {
         return navController;
     }
 
     public MainActivityViewModel getMainActivityVM() {
-        return viewModel;
+        return mViewModel;
     }
 
 
@@ -92,4 +113,46 @@ public class MainActivity extends AppCompatActivity {
 
         return bluetoothRequest;
     }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        unregisterReceiver(serverStateBroadcastReceiver);
+    }
+
+    private class ServiceStateBR extends BroadcastReceiver {
+
+
+
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Log.d(TAG, "received new state: "+intent.getAction());
+            switch (intent.getAction()){
+                case (BTConnectionService.STATE_IDLE):
+                    mIsServerRunningLD.setValue(true);
+                    mCurrentlyConnectedSoundDeviceLD.setValue(null);
+                    ;break;
+                case(BTConnectionService.STATE_LISTENING):
+                    mIsServerRunningLD.setValue(true);
+                    BluetoothDevice currentDevice=intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                    if(currentDevice!=null) {
+                        mCurrentlyConnectedSoundDeviceLD.setValue(currentDevice);
+                        Toast.makeText(getApplicationContext()
+                                ,"Connected to sound device: "+currentDevice
+                                ,Toast.LENGTH_SHORT)
+                                .show();
+                    };
+                    break;
+                case(BTConnectionService.STATE_REACHING):
+                    mIsServerRunningLD.setValue(true);
+                    mCurrentlyConnectedSoundDeviceLD.setValue(null);
+                    break;
+                case(BTConnectionService.STATE_DISABLING):
+                    mIsServerRunningLD.setValue(false);
+                    mCurrentlyConnectedSoundDeviceLD.setValue(null);
+                    break;
+            }
+        }
+}
 }

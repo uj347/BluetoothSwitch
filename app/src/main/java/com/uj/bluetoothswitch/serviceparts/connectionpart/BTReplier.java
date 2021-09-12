@@ -47,14 +47,23 @@ public class BTReplier implements IReplier<BluetoothDevice> {
         return Completable.create(
                 emitter->{
                     while(!emitter.isDisposed()){
+                        if(mLegalStopFlag.get())emitter.onComplete();
+                        mDisposables.clear();
                         BTListener btListener=new BTListener(mUuid, BluetoothSwitcherApp.APP_NAME);
                         emitter.setCancellable(btListener::stopConnection);
                         mDisposables.add(new CancellableDisposable(btListener::stopConnection));
                         Log.d(TAG, "Waiting for incoming connection");
                         btListener
                                 .startListening()
+//TODO
+                                .blockingSubscribe(
+                                        ()->  Log.d(TAG, "Incomming connection accepted"),
+                                        (err)-> Log.d(TAG, "Incomming connection failed")
 
-                                .blockingSubscribe();
+                                );
+                        if(!btListener.isConnected()){
+                        continue;
+                        }
 
 
                         Log.d(TAG, "Incomming connection accepted");

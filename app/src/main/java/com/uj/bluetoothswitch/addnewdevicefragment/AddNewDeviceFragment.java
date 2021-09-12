@@ -87,9 +87,13 @@ public class AddNewDeviceFragment extends Fragment {
                         Log.d(TAG, "Recived broadcast about found device: "+ foundDevice.getName());
                         DeviceEntity foundDeviceEntity= DeviceEntity.getEntityFor(foundDevice.getName()
                                 ,foundDevice.getAddress());
-                        Set<DeviceEntity> entitiesFromLD=foundDevicesLiveData.getValue();
-                        entitiesFromLD.add(foundDeviceEntity);
-                        foundDevicesLiveData.setValue(entitiesFromLD);
+                        if(foundDeviceEntity!=null) {
+
+                            Set<DeviceEntity> entitiesFromLD = foundDevicesLiveData.getValue();
+                            entitiesFromLD.add(foundDeviceEntity);
+
+                            foundDevicesLiveData.postValue(entitiesFromLD);
+                        }
                     }
                 }
             }

@@ -29,53 +29,52 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
 import io.reactivex.rxjava3.subjects.ReplaySubject;
 
 
-@Database(entities = {DeviceEntity.class},version = 1)
+@Database(entities = {DeviceEntity.class}, version = 1)
 public abstract class DeviceDB extends RoomDatabase {
-    private static final String TAG="DBClass";
+    private static final String TAG = "DBClass";
 
     public abstract DeviceDAO deviceDAO();
 
 
-static volatile   private DeviceDB instance;
+    static volatile private DeviceDB instance;
 
 
-    static public synchronized DeviceDB getInstance(Context context){
+    static public synchronized DeviceDB getInstance(Context context) {
         Log.d(TAG, "New Invocation of getInstance of DB");
-    if(instance==null){
-       instance=Room.databaseBuilder(context.getApplicationContext(),DeviceDB.class,"btDevices.db")
-               .build();
+        if (instance == null) {
+            instance = Room.databaseBuilder(context.getApplicationContext(), DeviceDB.class, "btDevices.db")
+                    .build();
         }
-        DeviceEntity[] initialDevices={DeviceEntity
-                                          .getEntityFor("JBL Tune 115","68:D6:ED:14:17:35"),
-                                       DeviceEntity
-                                          .getEntityFor("Tronsmart T6","FC:58:FA:C1:03:29")
-    };
+        DeviceEntity[] initialDevices = {DeviceEntity
+                .getEntityFor("JBL Tune 115", "68:D6:ED:14:17:35"),
+                DeviceEntity
+                        .getEntityFor("Tronsmart T6", "FC:58:FA:C1:03:29")
+        };
 
-        List<DeviceEntity> devicesFromDB= instance.deviceDAO()
+        List<DeviceEntity> devicesFromDB = instance.deviceDAO()
                 .getAllRXSingle()
                 .subscribeOn(Schedulers.io())
                 //Debug
-                .doOnSuccess(list->{
-                    Log.d(TAG, "contents of DB: "+ list);
+                .doOnSuccess(list -> {
+                    Log.d(TAG, "contents of DB: " + list);
                 })
                 .blockingGet();
 
 
         Stream.of(new ArrayList<DeviceEntity>(Arrays.asList(initialDevices)))
-                .flatMap(list->{
+                .flatMap(list -> {
                     list.removeAll(devicesFromDB);
-                    return list.stream();})
-                .forEach(entity->instance.deviceDAO().insertAll(entity)
-                .subscribeOn(Schedulers.io())
-                .subscribe()
-        );
+                    return list.stream();
+                })
+                .forEach(entity -> instance.deviceDAO().insertAll(entity)
+                        .subscribeOn(Schedulers.io())
+                        .subscribe()
+                );
 
 
+        Log.d(TAG, "Contents of contentsofDB: " + devicesFromDB);
 
-
-        Log.d(TAG, "Contents of contentsofDB: "+ devicesFromDB);
-
-     return instance;
+        return instance;
 
     }
 

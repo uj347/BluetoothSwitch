@@ -12,5 +12,5 @@ public interface IConnection {
 
     InputStream getInputStream() throws IOException;
 
-    OutputStream getOutputStream()throws IOException;
+    OutputStream getOutputStream() throws IOException;
 }

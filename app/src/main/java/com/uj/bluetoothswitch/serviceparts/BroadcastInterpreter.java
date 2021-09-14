@@ -26,7 +26,7 @@ public class BroadcastInterpreter {
         this.mSoundprofilesBroadcastReciever = service.exposeSoundProfileBR();
         this.mUserCommandsBroadcastReceiver = service.exposeUserCommandsBR();
         this.mCommander = mServiceInstance.exposeCommander();
-        this.mAwarenessCompoent= mServiceInstance.exposeAwarenessComponent();
+        this.mAwarenessCompoent = mServiceInstance.exposeAwarenessComponent();
     }
 
     public void setManualDisconnectOverride(boolean newValue) {
@@ -45,31 +45,31 @@ public class BroadcastInterpreter {
                 mSoundprofilesBroadcastReciever
                         .getConnectedObservable()
                         .subscribe(deviceOptional -> {
-                            BluetoothDevice device= deviceOptional.orElse(null);
+                            BluetoothDevice device = deviceOptional.orElse(null);
                             mCommander.onListen(device);
                         }),
                 mUserCommandsBroadcastReceiver
                         .getUserSeeksConnectObservable()
                         .subscribe(deviceOptional -> {
-                            BluetoothDevice device= deviceOptional.get();
+                            BluetoothDevice device = deviceOptional.get();
                             Log.d(TAG, "Interpreted reaching to : " + device);
                             mCommander.onReach(device);
                         }),
                 mUserCommandsBroadcastReceiver
                         .getUserSeeksDisonnectObservable()
-                        .doOnNext(devOpt->Log.d(TAG, "Interpreted DISCONNECT COMMAND  "))
+                        .doOnNext(devOpt -> Log.d(TAG, "Interpreted DISCONNECT COMMAND  "))
                         .subscribe(deviceOptional -> {
-                            BluetoothDevice device= deviceOptional.orElse(null);
+                            BluetoothDevice device = deviceOptional.orElse(null);
                             mCommander.onDisconnect(device);
                         }),
                 mUserCommandsBroadcastReceiver
                         .getUserSeeksServiceStateObservable()
-                        .doOnNext(devOpt->Log.d(TAG, "Interpreted FORCEDSTATENOTIFICATION COMMAND  "))
+                        .doOnNext(devOpt -> Log.d(TAG, "Interpreted FORCEDSTATENOTIFICATION COMMAND  "))
 
-                        .subscribe(obj-> mAwarenessCompoent.forcedStateNotification()),
+                        .subscribe(obj -> mAwarenessCompoent.forcedStateNotification()),
                 mUserCommandsBroadcastReceiver
                         .getUserSeeksStopServObservable()
-                        .subscribe(obj-> mCommander.onStop())
+                        .subscribe(obj -> mCommander.onStop())
 
         );
     }

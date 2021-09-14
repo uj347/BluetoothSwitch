@@ -80,7 +80,7 @@ public class Commander {
 
                         pair.second
                                 .subscribeOn(Schedulers.io())
-                                .doOnTerminate(()-> {
+                                .doOnTerminate(() -> {
                                     mCommandDisposable.clear();
                                     Log.d(TAG, "Command disposable cleared ");
                                 })
@@ -155,7 +155,7 @@ public class Commander {
                                         connectedDevices.isEmpty() ? null : connectedDevices.get(0);
 
                                 if (currentlyConnected != null) {
-                                    Log.d(TAG, "CurrentlyConnectedDevice: "+ currentlyConnected.getName());
+                                    Log.d(TAG, "CurrentlyConnectedDevice: " + currentlyConnected.getName());
                                     independentInquiryRequired.set(false);
                                     if (currentlyConnected.equals(seekableSoundDevice)) {
                                         Log.d(TAG, "onReach: already connected to required device, proceeding on listen");
@@ -208,7 +208,7 @@ public class Commander {
                             if (independentInquiryRequired.get()) {
                                 Log.d(TAG, "Starting independent Inquiries");
                                 Single.<Boolean>create(
-                                        sinEmmiter->{
+                                        sinEmmiter -> {
                                             mManager
                                                     .tryConnectToSpecifiedDevice(seekableSoundDevice.getAddress())
                                                     .blockingSubscribe();
@@ -220,12 +220,12 @@ public class Commander {
                                                     .blockingSubscribe(
                                                             (device) -> {
                                                                 Log.d(TAG, "Successfully connected to device without any inquiries");
-                                                                if(device.equals(seekableSoundDevice)){
-                                                                    if(!sinEmmiter.isDisposed()){
+                                                                if (device.equals(seekableSoundDevice)) {
+                                                                    if (!sinEmmiter.isDisposed()) {
                                                                         sinEmmiter.onSuccess(true);
                                                                     }
-                                                                }else{
-                                                                    if(!sinEmmiter.isDisposed()){
+                                                                } else {
+                                                                    if (!sinEmmiter.isDisposed()) {
                                                                         sinEmmiter.onSuccess(false);
                                                                     }
                                                                 }
@@ -233,31 +233,31 @@ public class Commander {
                                                             (err) -> {
                                                                 Log.d(TAG, "Connection to soundDevice without inquries doesn't occured, " +
                                                                         "proceeding to inquiries");
-                                                                if(!sinEmmiter.isDisposed()){
+                                                                if (!sinEmmiter.isDisposed()) {
                                                                     sinEmmiter.onSuccess(false);
                                                                 }
 
                                                             });
                                         }
-                                        ).flatMap(
-                                                directConnection-> {
-                                          if (directConnection){
-                                              return Single.just(true);
-                                          }else{
-                                             return mInquirer
-                                                      .makeInquiries(seekableSoundDevice.getAddress(), prepareInquiryList(seekableSoundDevice)
-                                                              .toArray(new BluetoothDevice[1]));
-                                          }
+                                ).flatMap(
+                                        directConnection -> {
+                                            if (directConnection) {
+                                                return Single.just(true);
+                                            } else {
+                                                return mInquirer
+                                                        .makeInquiries(seekableSoundDevice.getAddress(), prepareInquiryList(seekableSoundDevice)
+                                                                .toArray(new BluetoothDevice[1]));
+                                            }
                                         }
-                                        )
+                                )
                                         .blockingSubscribe(
                                                 (result) -> {
                                                     Log.d(TAG, "reach completed with result: " + result);
                                                     if (!emitter.isDisposed()) {
-                                                       if(!result){
-                                                           onIdle();
-                                                           emitter.onComplete();
-                                                       }
+                                                        if (!result) {
+                                                            onIdle();
+                                                            emitter.onComplete();
+                                                        }
                                                     }
                                                 },
                                                 err -> {
@@ -283,7 +283,8 @@ public class Commander {
         mCommandSubject.onNext(command);
 
     }
-//TODO
+
+    //TODO
     public void onDisconnect(BluetoothDevice deviceToDisconnectFrom) {
         Log.d(TAG, "onDisconnect: invoked");
         if (mManager.isFullyConstruted()) {
@@ -309,8 +310,8 @@ public class Commander {
                 );
             }
 
-        }else{
-            Toast.makeText(mServiceInstance,"SoundProfileManager is not ready yet!",Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(mServiceInstance, "SoundProfileManager is not ready yet!", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -336,7 +337,7 @@ public class Commander {
     }
 
     private void stopInquiries() {
-        if(mServiceInstance!=null){
+        if (mServiceInstance != null) {
             mServiceInstance.exposeBroadcastInterpreter()
                     .setManualDisconnectOverride(false);
         }

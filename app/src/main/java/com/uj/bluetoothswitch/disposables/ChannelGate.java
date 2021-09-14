@@ -12,7 +12,7 @@ public class ChannelGate {
     private Map<Byte[], Integer> patterns;
     //Размер самого большо паттерна в мапе
     private int procArraySize;
-    private boolean singlePatternMode=false;
+    private boolean singlePatternMode = false;
 
     public ChannelGate(Map<Byte[], Integer> codePatternPair) {
 
@@ -21,16 +21,16 @@ public class ChannelGate {
         procArraySize = patterns.keySet().stream().map(ar -> ar.length).reduce(0, ((prev, now) -> prev > now ? prev : now));
     }
 
-    public static ChannelGate getSingleModeChannelGate(Byte[] pattern){
-        Map<Byte[], Integer> codePatternPair=new HashMap<>();
-        codePatternPair.put(pattern,1);
-        ChannelGate result=new ChannelGate(codePatternPair);
+    public static ChannelGate getSingleModeChannelGate(Byte[] pattern) {
+        Map<Byte[], Integer> codePatternPair = new HashMap<>();
+        codePatternPair.put(pattern, 1);
+        ChannelGate result = new ChannelGate(codePatternPair);
         result.setSingleMode(true);
         return result;
     }
 
     private void setSingleMode(boolean b) {
-        this.singlePatternMode=b;
+        this.singlePatternMode = b;
     }
 
 
@@ -42,7 +42,6 @@ public class ChannelGate {
 
 
     }
-
 
 
     private Byte[] nextIteration(Byte[] procesAr, InputStream inputStream) {
@@ -106,13 +105,12 @@ public class ChannelGate {
     }
 
     public InputStream singleMatch(InputStream inputStream) throws IOException
-            , UnsupportedOperationException{
-        if(this.singlePatternMode==false)
+            , UnsupportedOperationException {
+        if (this.singlePatternMode == false)
             throw new UnsupportedOperationException("This gate is not in single Pattern Mode");
-    getMatchCode(inputStream);
-    return inputStream;
+        getMatchCode(inputStream);
+        return inputStream;
     }
-
 
 
 }

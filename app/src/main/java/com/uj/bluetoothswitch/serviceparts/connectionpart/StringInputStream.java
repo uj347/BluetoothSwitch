@@ -11,23 +11,22 @@ import java.io.UTFDataFormatException;
 import java.util.zip.DataFormatException;
 
 public class StringInputStream extends DataInputStream {
-    public static final String TAG="StringInputStream";
+    public static final String TAG = "StringInputStream";
+
     public StringInputStream(InputStream in) {
         super(new BufferedInputStream(in));
     }
-    public String readString ()throws IOException  {
+
+    public String readString() throws IOException {
         try {
             return super.readUTF();
-        }
-        catch (EOFException e) {
+        } catch (EOFException e) {
             Log.d(TAG, "EOF Exception");
             throw new IOException(e);
-        }
-        catch (UTFDataFormatException e){
+        } catch (UTFDataFormatException e) {
             Log.d(TAG, "UTFDataFormat exc");
             throw new IOException(e);
-        }
-        catch (IOException e){
+        } catch (IOException e) {
             Log.d(TAG, "General IO exception");
             throw new IOException(e);
         }

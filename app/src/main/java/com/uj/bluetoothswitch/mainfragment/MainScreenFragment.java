@@ -34,8 +34,8 @@ public class MainScreenFragment extends Fragment {
     private Button mDisconnectButton;
     private BluetoothSwitcherApp appContext;
     private Button mToggleServiceButton;
-    private LiveData<Boolean>mIsServerRunningLD;
-    private LiveData<BluetoothDevice>mCurrentlyConnectedDeviceLD;
+    private LiveData<Boolean> mIsServerRunningLD;
+    private LiveData<BluetoothDevice> mCurrentlyConnectedDeviceLD;
     private MainActivityViewModel mMainActivityViewModel;
 
 
@@ -57,7 +57,7 @@ public class MainScreenFragment extends Fragment {
     public void onViewCreated(@NonNull @NotNull View view, @Nullable @org.jetbrains.annotations.Nullable Bundle savedInstanceState) {
         mServiceStateSwitch = view.findViewById(R.id.serviceStateIndicator);
         mDisconnectButton = view.findViewById(R.id.disconnectCurrentDeviceButton);
-        mToggleServiceButton=view.findViewById(R.id.toggleService);
+        mToggleServiceButton = view.findViewById(R.id.toggleService);
 
 
     }
@@ -66,9 +66,9 @@ public class MainScreenFragment extends Fragment {
     public void onStart() {
         super.onStart();
         mMainActivity = (MainActivity) getActivity();
-        mMainActivityViewModel=mMainActivity.getMainActivityVM();
-        mIsServerRunningLD=mMainActivityViewModel.getIsServerRunningLD();
-        mCurrentlyConnectedDeviceLD=mMainActivityViewModel.getCurrentlyConnectedSoundDeviceLD();
+        mMainActivityViewModel = mMainActivity.getMainActivityVM();
+        mIsServerRunningLD = mMainActivityViewModel.getIsServerRunningLD();
+        mCurrentlyConnectedDeviceLD = mMainActivityViewModel.getCurrentlyConnectedSoundDeviceLD();
 
 
         mDevicesRecyclerView = (RecyclerView) mMainActivity.findViewById(R.id.devicesRecycler);
@@ -101,12 +101,12 @@ public class MainScreenFragment extends Fragment {
         mMainActivity.getNavController().navigate(MainScreenFragmentDirections.actionMainScreenFragmentToAddNewDeviceFragment());
     }
 
-    public void toggleServiceOnClick(View view){
-        boolean isServiceRunning=mIsServerRunningLD.getValue();
-        if (isServiceRunning){
+    public void toggleServiceOnClick(View view) {
+        boolean isServiceRunning = mIsServerRunningLD.getValue();
+        if (isServiceRunning) {
             mMainActivity.sendBroadcast(new Intent(BTConnectionService.COMMAND_USER_SEEKS_STOPSERVICE));
-        }else{
-            mMainActivity.startService(new Intent(mMainActivity,BTConnectionService.class));
+        } else {
+            mMainActivity.startService(new Intent(mMainActivity, BTConnectionService.class));
         }
 
     }

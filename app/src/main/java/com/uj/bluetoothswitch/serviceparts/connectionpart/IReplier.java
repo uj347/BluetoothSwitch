@@ -6,8 +6,9 @@ import java.util.function.Consumer;
 
 import io.reactivex.rxjava3.core.Completable;
 
-public  interface IReplier <T> {
+public interface IReplier<T> {
     Completable waitForInquiry(T objectOfIntrest);
+
     void stopWaitingForInquiry();
 
 

@@ -17,7 +17,7 @@ import java.util.Objects;
 @Entity
 public class DeviceEntity {
 
-    @PrimaryKey (autoGenerate = true)
+    @PrimaryKey(autoGenerate = true)
     public int id;
 
     @ColumnInfo(name = "device_name")
@@ -28,14 +28,14 @@ public class DeviceEntity {
 
     @Override
     public boolean equals(@Nullable @org.jetbrains.annotations.Nullable Object other) {
-        if (!(other instanceof DeviceEntity)){
-            return  false;
-        }
-        if (other==null){
+        if (!(other instanceof DeviceEntity)) {
             return false;
         }
-        DeviceEntity thisInstance=this;
-        DeviceEntity otherInstance=(DeviceEntity) other;
+        if (other == null) {
+            return false;
+        }
+        DeviceEntity thisInstance = this;
+        DeviceEntity otherInstance = (DeviceEntity) other;
 
         return thisInstance.macAdress.equals(otherInstance.macAdress);
 //        return other instanceof DeviceEntity
@@ -51,7 +51,7 @@ public class DeviceEntity {
         this.deviceName = deviceName;
     }
 
-    public synchronized   String getMacAdress() {
+    public synchronized String getMacAdress() {
         return macAdress;
     }
 
@@ -63,27 +63,27 @@ public class DeviceEntity {
     @NotNull
     @Override
     public String toString() {
-        return "[DeviceEntity: "+this.deviceName+": "+this.macAdress;
+        return "[DeviceEntity: " + this.deviceName + ": " + this.macAdress;
     }
 
     @Override
     public int hashCode() {
-return Objects.hash(this.macAdress);
+        return Objects.hash(this.macAdress);
     }
 
-    static public DeviceEntity getEntityFor(String name, String macAdress){
-        if(macAdress==null||!BluetoothAdapter.checkBluetoothAddress(macAdress)) {
+    static public DeviceEntity getEntityFor(String name, String macAdress) {
+        if (macAdress == null || !BluetoothAdapter.checkBluetoothAddress(macAdress)) {
             throw new RuntimeException("You trying to create DeviceEntity without proper MAC");
         }
-        DeviceEntity entity=new DeviceEntity();
-        if(name==null||name.isEmpty()){
+        DeviceEntity entity = new DeviceEntity();
+        if (name == null || name.isEmpty()) {
             entity.setDeviceName("NONAME");
             entity.setMacAdress(macAdress);
-            return  entity;
-        }
-            entity.setDeviceName(name);
-            entity.setMacAdress(macAdress);
             return entity;
+        }
+        entity.setDeviceName(name);
+        entity.setMacAdress(macAdress);
+        return entity;
 
     }
 

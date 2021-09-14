@@ -47,8 +47,8 @@ public class BTInquirer implements IInquirer<BluetoothDevice> {
         mFoundFlag.set(false);
         mStopSignal.set(false);
         return Observable.fromArray(devicesToConnect)
-                .concatMapSingle(device -> makeSingleInquiry(whatAboutMAC,device))
-                .filter(result->result)
+                .concatMapSingle(device -> makeSingleInquiry(whatAboutMAC, device))
+                .filter(result -> result)
                 .first(false);
 //                .concatMapCompletableDelayError(device -> {
 //                    if (mFoundFlag.get()) {
@@ -87,7 +87,7 @@ public class BTInquirer implements IInquirer<BluetoothDevice> {
                             },
                             (err) -> {
                                 Log.d(TAG, "Error occured in client connection: " + err.getMessage());
-                                if(!emitter.isDisposed()){
+                                if (!emitter.isDisposed()) {
                                     emitter.onSuccess(false);
                                 }
                             }
@@ -107,12 +107,12 @@ public class BTInquirer implements IInquirer<BluetoothDevice> {
                     if (answer.trim().equals("YES")) {
                         Thread.sleep(900);
                         mProfileManager.tryConnectToSpecifiedDevice(whatAboutMAC).blockingSubscribe();
-                       // mFoundFlag.set(true);
-                        if(!emitter.isDisposed()) {
+                        // mFoundFlag.set(true);
+                        if (!emitter.isDisposed()) {
                             emitter.onSuccess(true);
                         }
-                    }else{
-                        if(!emitter.isDisposed()) {
+                    } else {
+                        if (!emitter.isDisposed()) {
                             emitter.onSuccess(false);
                         }
                     }

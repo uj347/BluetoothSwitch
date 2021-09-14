@@ -31,14 +31,18 @@ public class MainActivity extends AppCompatActivity {
     private NavController navController;
     private MutableLiveData<Boolean> mIsServerRunningLD;
     private MutableLiveData<BluetoothDevice> mCurrentlyConnectedSoundDeviceLD;
-    private static final IntentFilter stateIntentFilter=new IntentFilter();
-    static {stateIntentFilter.addAction(BTConnectionService.STATE_DISABLING);
+    private static final IntentFilter stateIntentFilter = new IntentFilter();
+
+    static {
+        stateIntentFilter.addAction(BTConnectionService.STATE_DISABLING);
         stateIntentFilter.addAction(BTConnectionService.STATE_IDLE);
         stateIntentFilter.addAction(BTConnectionService.STATE_LISTENING);
         stateIntentFilter.addAction(BTConnectionService.STATE_REACHING);
-    };
+    }
 
-    private final BroadcastReceiver serverStateBroadcastReceiver=new ServiceStateBR();
+    ;
+
+    private final BroadcastReceiver serverStateBroadcastReceiver = new ServiceStateBR();
 
 
     @Override
@@ -46,11 +50,11 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         mViewModel = new ViewModelProvider(this, new MainActivityViewModel.MainActivityVMFactory(this))
                 .get(MainActivityViewModel.class);
-        this.mCurrentlyConnectedSoundDeviceLD=mViewModel.getCurrentlyConnectedSoundDeviceLD();
-        this.mIsServerRunningLD=mViewModel.getIsServerRunningLD();
+        this.mCurrentlyConnectedSoundDeviceLD = mViewModel.getCurrentlyConnectedSoundDeviceLD();
+        this.mIsServerRunningLD = mViewModel.getIsServerRunningLD();
 
-        Intent serviceIntent=new Intent(this,BTConnectionService.class);
-        registerReceiver(serverStateBroadcastReceiver,stateIntentFilter);
+        Intent serviceIntent = new Intent(this, BTConnectionService.class);
+        registerReceiver(serverStateBroadcastReceiver, stateIntentFilter);
         startService(serviceIntent);
         sendBroadcast(new Intent(BTConnectionService.COMMAND_USER_SEEKS_CURRENTSTATE));
         BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
@@ -123,36 +127,36 @@ public class MainActivity extends AppCompatActivity {
     private class ServiceStateBR extends BroadcastReceiver {
 
 
-
-
         @Override
         public void onReceive(Context context, Intent intent) {
-            Log.d(TAG, "received new state: "+intent.getAction());
-            switch (intent.getAction()){
+            Log.d(TAG, "received new state: " + intent.getAction());
+            switch (intent.getAction()) {
                 case (BTConnectionService.STATE_IDLE):
                     mIsServerRunningLD.setValue(true);
                     mCurrentlyConnectedSoundDeviceLD.setValue(null);
-                    ;break;
-                case(BTConnectionService.STATE_LISTENING):
+                    ;
+                    break;
+                case (BTConnectionService.STATE_LISTENING):
                     mIsServerRunningLD.setValue(true);
-                    BluetoothDevice currentDevice=intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                    if(currentDevice!=null) {
+                    BluetoothDevice currentDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                    if (currentDevice != null) {
                         mCurrentlyConnectedSoundDeviceLD.setValue(currentDevice);
                         Toast.makeText(getApplicationContext()
-                                ,"Connected to sound device: "+currentDevice
-                                ,Toast.LENGTH_SHORT)
+                                , "Connected to sound device: " + currentDevice
+                                , Toast.LENGTH_SHORT)
                                 .show();
-                    };
+                    }
+                    ;
                     break;
-                case(BTConnectionService.STATE_REACHING):
+                case (BTConnectionService.STATE_REACHING):
                     mIsServerRunningLD.setValue(true);
                     mCurrentlyConnectedSoundDeviceLD.setValue(null);
                     break;
-                case(BTConnectionService.STATE_DISABLING):
+                case (BTConnectionService.STATE_DISABLING):
                     mIsServerRunningLD.setValue(false);
                     mCurrentlyConnectedSoundDeviceLD.setValue(null);
                     break;
             }
         }
-}
+    }
 }

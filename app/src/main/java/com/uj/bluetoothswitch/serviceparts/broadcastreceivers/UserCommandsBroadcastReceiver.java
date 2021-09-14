@@ -25,11 +25,11 @@ public class UserCommandsBroadcastReceiver extends BroadcastReceiver {
     private final PublishSubject<Optional<BluetoothDevice>> mUserDisconnectSJ = PublishSubject.create();
     private final PublishSubject<Object> mUserStopServiceSJ = PublishSubject.create();
     private final PublishSubject<Object> mUserSeeksServiceStateSJ = PublishSubject.create();
-    public static IntentFilter sIntentFilter=new IntentFilter();
+    public static IntentFilter sIntentFilter = new IntentFilter();
 
     static {
-        for (String action:
-             BTConnectionService.USERCOMMAND_LIST) {
+        for (String action :
+                BTConnectionService.USERCOMMAND_LIST) {
             sIntentFilter.addAction(action);
         }
     }
@@ -38,11 +38,11 @@ public class UserCommandsBroadcastReceiver extends BroadcastReceiver {
         context.registerReceiver(this, sIntentFilter);
     }
 
-    public Observable<Optional<BluetoothDevice>>  getUserSeeksConnectObservable() {
+    public Observable<Optional<BluetoothDevice>> getUserSeeksConnectObservable() {
         return mUserConnectSJ.debounce(200, TimeUnit.MILLISECONDS);
     }
 
-    public Observable<Optional<BluetoothDevice>>  getUserSeeksDisonnectObservable() {
+    public Observable<Optional<BluetoothDevice>> getUserSeeksDisonnectObservable() {
         return mUserDisconnectSJ.debounce(200, TimeUnit.MILLISECONDS);
     }
 
@@ -68,9 +68,9 @@ public class UserCommandsBroadcastReceiver extends BroadcastReceiver {
 
         BluetoothDevice extraDevice = intent
                 .getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-        Log.d(TAG, "In processing user intent Device Obtained: "+ extraDevice);
-        Optional<BluetoothDevice>deviceOptional=Optional.ofNullable(extraDevice);
-        Log.d(TAG, "Contents of Optional: "+deviceOptional.orElse(null));
+        Log.d(TAG, "In processing user intent Device Obtained: " + extraDevice);
+        Optional<BluetoothDevice> deviceOptional = Optional.ofNullable(extraDevice);
+        Log.d(TAG, "Contents of Optional: " + deviceOptional.orElse(null));
         switch (intent.getAction()) {
             case BTConnectionService.COMMAND_USER_SEEKS_CONNECT:
                 mUserConnectSJ.onNext(deviceOptional);

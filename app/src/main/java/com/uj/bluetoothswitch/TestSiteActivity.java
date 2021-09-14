@@ -23,13 +23,13 @@ import java.util.UUID;
 
 public class TestSiteActivity extends AppCompatActivity {
 
-    private static final String TAG= "TEST_ACTIVITY";
-    private static final UUID MYUUID= UUID.fromString("70a381c8-2486-47b8-acad-82d84e367eee");
-    private static final String NAME= "MyRandomName";
-    private static final String PHONEMAC="F8:C3:9E:8B:28:C6";
-    private static final  String PLANSHMAC="74:D2:1D:6B:19:88";
-    private static final String TRONSMARTMAC="FC:58:FA:C1:03:29";
-    private static final Byte[] KEYPATTERN=new Byte[]{125,125,125};
+    private static final String TAG = "TEST_ACTIVITY";
+    private static final UUID MYUUID = UUID.fromString("70a381c8-2486-47b8-acad-82d84e367eee");
+    private static final String NAME = "MyRandomName";
+    private static final String PHONEMAC = "F8:C3:9E:8B:28:C6";
+    private static final String PLANSHMAC = "74:D2:1D:6B:19:88";
+    private static final String TRONSMARTMAC = "FC:58:FA:C1:03:29";
+    private static final Byte[] KEYPATTERN = new Byte[]{125, 125, 125};
     SoundProfileManager man;
     BTReplier replier;
     BTInquirer inquirer;
@@ -39,25 +39,24 @@ public class TestSiteActivity extends AppCompatActivity {
     private DeviceDB deviceDB;
 
 
-
-    Button b1,b2;
-      TextView t;
-      Set<DeviceEntity> entitySet;
-      private static BluetoothAdapter adapter;
+    Button b1, b2;
+    TextView t;
+    Set<DeviceEntity> entitySet;
+    private static BluetoothAdapter adapter;
 
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_test_site);
-        b1=findViewById(R.id.testButton1);
-        b2=findViewById(R.id.testButton2);
-        t=findViewById(R.id.testText);
-        adapter=BluetoothAdapter.getDefaultAdapter();
+        b1 = findViewById(R.id.testButton1);
+        b2 = findViewById(R.id.testButton2);
+        t = findViewById(R.id.testText);
+        adapter = BluetoothAdapter.getDefaultAdapter();
 
         man = new SoundProfileManager(this);
         //replier = new BTReplier(new BTListener(KEYPATTERN,MYUUID,NAME),man);
-        Intent serviceIntent=new Intent(this,BTConnectionService.class);
+        Intent serviceIntent = new Intent(this, BTConnectionService.class);
 
         //TODO Не забыть включить назад когда настрою менеджер
 
@@ -68,7 +67,7 @@ public class TestSiteActivity extends AppCompatActivity {
 
 //
 //        replier.waitForInquiry(adapter.getRemoteDevice(TRONSMARTMAC));
-       // client=new BTClient(KEYPATTERN,MYUUID,NAME);
+        // client=new BTClient(KEYPATTERN,MYUUID,NAME);
 
 
     }
@@ -95,14 +94,12 @@ public class TestSiteActivity extends AppCompatActivity {
 //        ).subscribeOn(Schedulers.newThread()).subscribe();
 //}
 
-//    public void disconnectTronsmart(View v){
+    //    public void disconnectTronsmart(View v){
 //        man.tryUnbindFromDevice(TRONSMARTMAC).subscribe();
 //    }
-    public void inquirer (View v){
-        inquirer.makeInquiries(TRONSMARTMAC,adapter.getRemoteDevice(PLANSHMAC));
+    public void inquirer(View v) {
+        inquirer.makeInquiries(TRONSMARTMAC, adapter.getRemoteDevice(PLANSHMAC));
     }
-
-
 
 
     @Override

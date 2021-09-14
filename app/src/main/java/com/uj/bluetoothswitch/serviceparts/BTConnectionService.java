@@ -36,7 +36,8 @@ public class BTConnectionService extends Service {
     public static final String COMMAND_USER_SEEKS_DISCONNECT = "Commander_USER_SEEKS_DISCONNECT";
     public static final String COMMAND_USER_SEEKS_STOPSERVICE = "Commander_USER_SEEKS_STOPSERVICE";
     public static final String COMMAND_USER_SEEKS_CURRENTSTATE = "Commander_USER_SEEKS_CURRENTSTATE";
-    public static final Set<String> USERCOMMAND_LIST=new HashSet<>();
+    public static final Set<String> USERCOMMAND_LIST = new HashSet<>();
+
     static {
         USERCOMMAND_LIST.add(COMMAND_USER_SEEKS_CONNECT);
         USERCOMMAND_LIST.add(COMMAND_USER_SEEKS_DISCONNECT);
@@ -59,9 +60,9 @@ public class BTConnectionService extends Service {
 
     private BluetoothDevice mCurrentSoundDevice;
     private MutableLiveData<ServiceState> mCurrentStateLD = new MutableLiveData<>();
-    private  Commander mCommander;
-    private  SoundProfileManager mSoundProfileManager;
-    private  AwarenessComponent mAwarenessComponent;
+    private Commander mCommander;
+    private SoundProfileManager mSoundProfileManager;
+    private AwarenessComponent mAwarenessComponent;
 
     private NotificationFactory mNotificationfactory;
     private final SoundprofilesBroadcastReciever mSoundProfBroadcastReceiver
@@ -70,7 +71,7 @@ public class BTConnectionService extends Service {
             new UserCommandsBroadcastReceiver();
     private BroadcastInterpreter mBroadcastInterpreter;
     private final CompositeDisposable mDisposables = new CompositeDisposable();
-    private final AtomicBoolean mServiceRunning= new AtomicBoolean();
+    private final AtomicBoolean mServiceRunning = new AtomicBoolean();
 
 
     public SoundProfileManager exposeSoundProfileManager() {
@@ -86,7 +87,7 @@ public class BTConnectionService extends Service {
     }
 
     public void setCurrentState(ServiceState newState) {
-        Log.d(TAG, "new state posted: "+newState.name());
+        Log.d(TAG, "new state posted: " + newState.name());
         this.mCurrentStateLD.postValue(newState);
     }
 
@@ -98,8 +99,9 @@ public class BTConnectionService extends Service {
     public UserCommandsBroadcastReceiver exposeUserCommandsBR() {
         return mUserCommandsBroadcastReceiver;
     }
-    public AwarenessComponent exposeAwarenessComponent (){
-        return  this.mAwarenessComponent;
+
+    public AwarenessComponent exposeAwarenessComponent() {
+        return this.mAwarenessComponent;
     }
 
     public BroadcastInterpreter exposeBroadcastInterpreter() {
@@ -109,13 +111,12 @@ public class BTConnectionService extends Service {
 
     @Override
     public void onCreate() {
-        mNotificationfactory= new NotificationFactory(this);
-        mSoundProfileManager= new SoundProfileManager(this);
-        mCommander= new Commander(this);
+        mNotificationfactory = new NotificationFactory(this);
+        mSoundProfileManager = new SoundProfileManager(this);
+        mCommander = new Commander(this);
         mBroadcastInterpreter = new BroadcastInterpreter(this);
-        mAwarenessComponent= new AwarenessComponent(this);
+        mAwarenessComponent = new AwarenessComponent(this);
     }
-
 
 
     @Override
@@ -126,7 +127,7 @@ public class BTConnectionService extends Service {
                 .timeout(10, TimeUnit.SECONDS)
                 .subscribe(
                         integer -> {
-                           if (!mServiceRunning.get()){
+                            if (!mServiceRunning.get()) {
                                 mCommander.startCommander();
                                 Log.d(TAG, "CommanderStarted");
                                 Log.d(TAG, "Notificationfactory created");
@@ -150,9 +151,9 @@ public class BTConnectionService extends Service {
                                     mCommander.onIdle();
                                     mServiceRunning.set(true);
                                 }
-                            }else{
-                               Log.d(TAG, "Shallow on start service command occured");
-                           }
+                            } else {
+                                Log.d(TAG, "Shallow on start service command occured");
+                            }
                         },
                         err -> {
                             Log.d(TAG, "Starting of service failed, reason: " + err);

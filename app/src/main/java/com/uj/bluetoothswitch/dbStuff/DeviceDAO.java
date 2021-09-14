@@ -33,7 +33,7 @@ public interface DeviceDAO {
     Single<DeviceEntity> getByID(Integer id);
 
     @Query("UPDATE deviceentity SET device_name = :name, mac_Adress= :mac WHERE id = :id")
-    Completable updateByID( int id, String name, String mac);
+    Completable updateByID(int id, String name, String mac);
 
 
     @Insert
@@ -43,7 +43,4 @@ public interface DeviceDAO {
     Completable delete(DeviceEntity deviceEntity);
 
 
-
-
-
- }
+}

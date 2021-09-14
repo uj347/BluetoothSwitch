@@ -61,32 +61,32 @@ public class BTListener implements IListener {
     @Override
     public Completable startListening() {
         return Completable.create(
-                            emitter -> {
-                                    BluetoothSocket tempSocket = null;
-                                    BluetoothServerSocket serverSocket=null;
-                                    try {
-                                        serverSocket=mAdapter.listenUsingRfcommWithServiceRecord(BluetoothSwitcherApp.APP_NAME,mUuid);
-                                        mAdapter.cancelDiscovery();
-                                        Log.d(TAG, "Before incoming connection accepted");
-                                        tempSocket = serverSocket.accept();
-                                        Log.d(TAG, "Incomming connection accepted with socket : "+tempSocket.toString() );
-                                        serverSocket.close();
-                                    } catch (IOException exc) {
-                                        Log.d(TAG, "Error occured in accepting incomin connection: "+exc.getMessage());
-                                        if (!emitter.isDisposed()) {
-                                            emitter.onError(exc);
-                                        }
-                                    }
-                                    if (tempSocket != null && tempSocket.isConnected()) {
-                                        setSocket(tempSocket);
-                                        mIsConnected.set(true);
-                                        if (!emitter.isDisposed()) {
-                                            emitter.onComplete();
-                                        }
-                                    }
+                emitter -> {
+                    BluetoothSocket tempSocket = null;
+                    BluetoothServerSocket serverSocket = null;
+                    try {
+                        serverSocket = mAdapter.listenUsingRfcommWithServiceRecord(BluetoothSwitcherApp.APP_NAME, mUuid);
+                        mAdapter.cancelDiscovery();
+                        Log.d(TAG, "Before incoming connection accepted");
+                        tempSocket = serverSocket.accept();
+                        Log.d(TAG, "Incomming connection accepted with socket : " + tempSocket.toString());
+                        serverSocket.close();
+                    } catch (IOException exc) {
+                        Log.d(TAG, "Error occured in accepting incomin connection: " + exc.getMessage());
+                        if (!emitter.isDisposed()) {
+                            emitter.onError(exc);
+                        }
+                    }
+                    if (tempSocket != null && tempSocket.isConnected()) {
+                        setSocket(tempSocket);
+                        mIsConnected.set(true);
+                        if (!emitter.isDisposed()) {
+                            emitter.onComplete();
+                        }
+                    }
 
-                            }
-                    );
+                }
+        );
 
     }
 

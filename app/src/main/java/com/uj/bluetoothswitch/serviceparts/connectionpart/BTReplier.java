@@ -32,8 +32,8 @@ public class BTReplier implements IReplier<BluetoothDevice> {
     private UUID mUuid = UUID.fromString("70a381c8-2486-47b8-acad-82d84e367eee");
     private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
     private final IBluetoothProfileManager mProfileManager;
-    private final AtomicBoolean mLegalStopFlag=new AtomicBoolean();
-    private final CompositeDisposable mDisposables=new CompositeDisposable();
+    private final AtomicBoolean mLegalStopFlag = new AtomicBoolean();
+    private final CompositeDisposable mDisposables = new CompositeDisposable();
 
     public BTReplier(IBluetoothProfileManager profileManager) {
         this.mProfileManager = profileManager;
@@ -43,13 +43,13 @@ public class BTReplier implements IReplier<BluetoothDevice> {
     @Override
     public Completable waitForInquiry(BluetoothDevice deviceOfIntrest) {
         mLegalStopFlag.set(false);
-        String deviceMAC=deviceOfIntrest.getAddress();
+        String deviceMAC = deviceOfIntrest.getAddress();
         return Completable.create(
-                emitter->{
-                    while(!emitter.isDisposed()){
-                        if(mLegalStopFlag.get())emitter.onComplete();
+                emitter -> {
+                    while (!emitter.isDisposed()) {
+                        if (mLegalStopFlag.get()) emitter.onComplete();
                         mDisposables.clear();
-                        BTListener btListener=new BTListener(mUuid, BluetoothSwitcherApp.APP_NAME);
+                        BTListener btListener = new BTListener(mUuid, BluetoothSwitcherApp.APP_NAME);
                         emitter.setCancellable(btListener::stopConnection);
                         mDisposables.add(new CancellableDisposable(btListener::stopConnection));
                         Log.d(TAG, "Waiting for incoming connection");
@@ -57,60 +57,60 @@ public class BTReplier implements IReplier<BluetoothDevice> {
                                 .startListening()
 //TODO
                                 .blockingSubscribe(
-                                        ()->  Log.d(TAG, "Incomming connection accepted"),
-                                        (err)-> Log.d(TAG, "Incomming connection failed")
+                                        () -> Log.d(TAG, "Incomming connection accepted"),
+                                        (err) -> Log.d(TAG, "Incomming connection failed")
 
                                 );
-                        if(!btListener.isConnected()){
-                        continue;
+                        if (!btListener.isConnected()) {
+                            continue;
                         }
 
 
                         Log.d(TAG, "Incomming connection accepted");
-                    try {
+                        try {
 
-                                StringInputStream stringInputStream =
-                                        new StringInputStream(btListener.getInputStream());
-                                StringOutputStream stringOutputStream =
-                                        new StringOutputStream(btListener.getOutputStream());
+                            StringInputStream stringInputStream =
+                                    new StringInputStream(btListener.getInputStream());
+                            StringOutputStream stringOutputStream =
+                                    new StringOutputStream(btListener.getOutputStream());
 
 
-                                    String incomingMsg = stringInputStream.readString();
-                                    Log.d(TAG, "Recieved message : " + incomingMsg);
-                                    if (incomingMsg.trim().equals(deviceMAC)) {
-                                        stringOutputStream.writeString("YES");
-                                        mLegalStopFlag.set(true);
-                                        Thread.sleep(50);
-                                        mProfileManager.tryDisconnectFromDevice(deviceMAC).blockingSubscribe();
-                                        if (!emitter.isDisposed()) {
-                                            emitter.onComplete();
-                                        }
-                                    } else {
-                                        stringOutputStream.writeString("NO");
-                                        btListener.stopConnection();
-                                        continue;
-                                    }
+                            String incomingMsg = stringInputStream.readString();
+                            Log.d(TAG, "Recieved message : " + incomingMsg);
+                            if (incomingMsg.trim().equals(deviceMAC)) {
+                                stringOutputStream.writeString("YES");
+                                mLegalStopFlag.set(true);
+                                Thread.sleep(50);
+                                mProfileManager.tryDisconnectFromDevice(deviceMAC).blockingSubscribe();
+                                if (!emitter.isDisposed()) {
+                                    emitter.onComplete();
+                                }
+                            } else {
+                                stringOutputStream.writeString("NO");
+                                btListener.stopConnection();
+                                continue;
+                            }
 
-                            }catch (IOException|InterruptedException exc ){
-                               Log.d(TAG, "Error in Replier: "+ exc);
-                               if(!emitter.isDisposed()){
-                                   emitter.onError(exc);
+                        } catch (IOException | InterruptedException exc) {
+                            Log.d(TAG, "Error in Replier: " + exc);
+                            if (!emitter.isDisposed()) {
+                                emitter.onError(exc);
 
-                               }
-                           }
+                            }
+                        }
 
                     }
 
                 }
 
-        ).retry(err->!mLegalStopFlag.get());
+        ).retry(err -> !mLegalStopFlag.get());
 
     }
 
 
     @Override
     public void stopWaitingForInquiry() {
-mLegalStopFlag.set(true);
+        mLegalStopFlag.set(true);
         Log.d(TAG, "stopWaitingForInquiry: invoked");
         mDisposables.clear();
     }

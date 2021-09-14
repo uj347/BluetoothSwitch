@@ -30,15 +30,15 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
 
 
 public class EditDeviceEntryFragment extends Fragment {
-private static final String TAG="EDIT_ENTRY_FRAGMENT";
-private int mEntityID;
-private EditText mNameText;
-private EditText mMacText;
-private Button mConfirmButton;
-private Button mCancelButton;
-private MutableLiveData<DeviceEntity> mEntityForEdit=new MutableLiveData<>();
-private MainActivity mMainActivity;
-private NavController mNavContoroller;
+    private static final String TAG = "EDIT_ENTRY_FRAGMENT";
+    private int mEntityID;
+    private EditText mNameText;
+    private EditText mMacText;
+    private Button mConfirmButton;
+    private Button mCancelButton;
+    private MutableLiveData<DeviceEntity> mEntityForEdit = new MutableLiveData<>();
+    private MainActivity mMainActivity;
+    private NavController mNavContoroller;
 
 
     @Override
@@ -58,54 +58,55 @@ private NavController mNavContoroller;
     @Override
     public void onViewCreated(@NonNull @NotNull View view, @Nullable @org.jetbrains.annotations.Nullable Bundle savedInstanceState) {
 
-        mNameText=view.findViewById(R.id.editNameEditText);
-        mMacText=view.findViewById(R.id.editMACEditText);
-        mConfirmButton=view.findViewById(R.id.editConfirmButton);
-        mCancelButton=view.findViewById(R.id.editCancelButton);
-        mEntityID=EditDeviceEntryFragmentArgs.fromBundle(getArguments()).getDeviceEntityID();
-        mMainActivity=(MainActivity) getActivity();
-        mNavContoroller= Navigation.findNavController(view);
+        mNameText = view.findViewById(R.id.editNameEditText);
+        mMacText = view.findViewById(R.id.editMACEditText);
+        mConfirmButton = view.findViewById(R.id.editConfirmButton);
+        mCancelButton = view.findViewById(R.id.editCancelButton);
+        mEntityID = EditDeviceEntryFragmentArgs.fromBundle(getArguments()).getDeviceEntityID();
+        mMainActivity = (MainActivity) getActivity();
+        mNavContoroller = Navigation.findNavController(view);
         mMainActivity.getMainActivityVM().getDeviceDb().deviceDAO().getByID(mEntityID)
                 .subscribeOn(Schedulers.io())
                 .subscribe(
-                        (entity)->{
+                        (entity) -> {
                             mEntityForEdit.postValue(entity);
                         }
                 );
-       mEntityForEdit.observe(getViewLifecycleOwner(), new Observer<DeviceEntity>() {
-           @Override
-           public void onChanged(DeviceEntity entity) {
-               if(entity!=null){
-                   mNameText.setText(entity.deviceName);
-                   mMacText.setText(entity.macAdress);
-                   mConfirmButton.setClickable(true);
-               }
-           }
-       });
-      mCancelButton.setOnClickListener(this::cancelOnclick);
-      mConfirmButton.setOnClickListener(this::confirmOnClick);
+        mEntityForEdit.observe(getViewLifecycleOwner(), new Observer<DeviceEntity>() {
+            @Override
+            public void onChanged(DeviceEntity entity) {
+                if (entity != null) {
+                    mNameText.setText(entity.deviceName);
+                    mMacText.setText(entity.macAdress);
+                    mConfirmButton.setClickable(true);
+                }
+            }
+        });
+        mCancelButton.setOnClickListener(this::cancelOnclick);
+        mConfirmButton.setOnClickListener(this::confirmOnClick);
 
     }
 
 
-    public void confirmOnClick(View view){
-        String nameContents=mNameText.getText().toString();
-        String macContents=mMacText.getText().toString().trim();
-        if(BluetoothAdapter.checkBluetoothAddress(macContents)){
+    public void confirmOnClick(View view) {
+        String nameContents = mNameText.getText().toString();
+        String macContents = mMacText.getText().toString().trim();
+        if (BluetoothAdapter.checkBluetoothAddress(macContents)) {
             mMainActivity.getMainActivityVM().getDeviceDb().deviceDAO()
-                    .updateByID(mEntityID,nameContents,macContents)
+                    .updateByID(mEntityID, nameContents, macContents)
                     .subscribeOn(Schedulers.io())
                     .subscribe();
-            Log.d(TAG, "confirmOnClick with device name: "+nameContents+"Mac: "+macContents);
+            Log.d(TAG, "confirmOnClick with device name: " + nameContents + "Mac: " + macContents);
             mNavContoroller.navigate(EditDeviceEntryFragmentDirections.actionEditDeviceEntryFragmentToMainScreenFragment());
-        }
-        else {
-            Log.d(TAG, "Cannot confirm because of invalid MAC: "+ macContents);
+        } else {
+            Log.d(TAG, "Cannot confirm because of invalid MAC: " + macContents);
             Toast.makeText(getContext(), "Invalid MAC-adress", Toast.LENGTH_SHORT).show();
         }
-    };
+    }
 
-    public void cancelOnclick (View view){
+    ;
+
+    public void cancelOnclick(View view) {
         mNavContoroller.navigate(EditDeviceEntryFragmentDirections.actionEditDeviceEntryFragmentToMainScreenFragment());
     }
 

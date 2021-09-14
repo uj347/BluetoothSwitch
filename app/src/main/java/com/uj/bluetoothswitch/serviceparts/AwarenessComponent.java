@@ -28,8 +28,7 @@ public class AwarenessComponent {
     private final SoundProfileManager mManager;
     private final Commander mCommander;
     private final LiveData<ServiceState> mServiceStateLD;
-    private final Observer<ServiceState> mStateObserver=mMainSubject::onNext;
-
+    private final Observer<ServiceState> mStateObserver = mMainSubject::onNext;
 
 
     public AwarenessComponent(BTConnectionService serviceInstance) {
@@ -39,14 +38,14 @@ public class AwarenessComponent {
         this.mServiceStateLD = mServiceInstance.exposeCurrentStateLD();
     }
 
-    public void stopAwarenessComponent(){
+    public void stopAwarenessComponent() {
 
         Completable
-                .fromAction(()->mServiceStateLD.removeObserver(mStateObserver))
+                .fromAction(() -> mServiceStateLD.removeObserver(mStateObserver))
                 .subscribeOn(AndroidSchedulers.mainThread())
                 .subscribe(
-                        ()-> Log.d(TAG, "StateLD observer removed in stopCommand"),
-                        err-> Log.d(TAG, "Error occured in stopping observing StateLD "+
+                        () -> Log.d(TAG, "StateLD observer removed in stopCommand"),
+                        err -> Log.d(TAG, "Error occured in stopping observing StateLD " +
                                 err.getMessage())
                 );
 
@@ -60,8 +59,8 @@ public class AwarenessComponent {
                 .distinctUntilChanged()
                 .subscribe(
                         (stateIntent) -> {
-                            Log.d(TAG, "sending broadcast, intent: "+stateIntent.getAction()
-                                    +" with device "
+                            Log.d(TAG, "sending broadcast, intent: " + stateIntent.getAction()
+                                    + " with device "
                                     + stateIntent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE));
                             mServiceInstance.sendBroadcast(stateIntent);
                         },
@@ -74,42 +73,44 @@ public class AwarenessComponent {
 
     private void launchTimedChecker() {
         mMainDisposable.add(Observable.interval(5, TimeUnit.SECONDS)
-                
-                .filter(num-> this.checkAndCorrectCurrentState())
-                .map(num->mServiceStateLD.getValue())
-                .filter(state->state!=null)
+
+                .filter(num -> this.checkAndCorrectCurrentState())
+                .map(num -> mServiceStateLD.getValue())
+                .filter(state -> state != null)
                 .subscribe(
-                    state->mMainSubject.onNext(state),
-                    err-> Log.d(TAG, "Err in timedChecker: "+ err)
+                        state -> mMainSubject.onNext(state),
+                        err -> Log.d(TAG, "Err in timedChecker: " + err)
                 ));
     }
 
-    private void launchStateChangedNotifier(){
-        mMainDisposable.add(Completable.fromAction(()->{
+    private void launchStateChangedNotifier() {
+        mMainDisposable.add(Completable.fromAction(() -> {
             mServiceStateLD.observeForever(mStateObserver);
         })
                 .subscribeOn(AndroidSchedulers.mainThread())
-                .subscribe(()-> Log.d(TAG, "StateChangedNotifier: launched succeessfully "),
-                        (err)-> Log.d(TAG, "StateChangedNotifier: launch failed,reason:  "+err)));
+                .subscribe(() -> Log.d(TAG, "StateChangedNotifier: launched succeessfully "),
+                        (err) -> Log.d(TAG, "StateChangedNotifier: launch failed,reason:  " + err)));
 
 
     }
 
-    public void forcedStateNotification(){
-        ServiceState currentState= mServiceStateLD.getValue();
-        if(currentState!=null){
+    public void forcedStateNotification() {
+        ServiceState currentState = mServiceStateLD.getValue();
+        if (currentState != null) {
             Log.d(TAG, "Sending forced State notification");
             mServiceInstance.sendBroadcast(processStateToIntent(currentState));
         }
 
     }
 
-   /** Returns true if everything is ok and no correction was required,false if state was corrected*/
+    /**
+     * Returns true if everything is ok and no correction was required,false if state was corrected
+     */
     private boolean checkAndCorrectCurrentState() {
         Log.d(TAG, "checkAndCorrectCurrentState: invoked");
-        List<BluetoothDevice> connectedDevices=mManager.getConnectedDevices();
+        List<BluetoothDevice> connectedDevices = mManager.getConnectedDevices();
         BluetoothDevice currentBTDevice =
-                connectedDevices.isEmpty()?null:connectedDevices.get(0);
+                connectedDevices.isEmpty() ? null : connectedDevices.get(0);
         ServiceState currentState = mServiceStateLD.getValue();
         if (currentState == null) {
 
@@ -134,9 +135,9 @@ public class AwarenessComponent {
 
 
     private BTDeviceCheckingIntent processStateToIntent(ServiceState state) {
-        List<BluetoothDevice> connectedDevices=mManager.getConnectedDevices();
+        List<BluetoothDevice> connectedDevices = mManager.getConnectedDevices();
         BluetoothDevice currentBTDevice =
-                connectedDevices.isEmpty()?null:connectedDevices.get(0);
+                connectedDevices.isEmpty() ? null : connectedDevices.get(0);
         return new BTDeviceCheckingIntent(BTConnectionService.STATE_COMMAND_MAP.get(state),
                 currentBTDevice);
 
@@ -145,7 +146,8 @@ public class AwarenessComponent {
 }
 
 class BTDeviceCheckingIntent extends Intent {
-   public static final String TAG= "DeviceCheckingIntent";
+    public static final String TAG = "DeviceCheckingIntent";
+
     public BTDeviceCheckingIntent(String action, BluetoothDevice btDeviceParcelable) {
         super(action);
         this.putExtra(BluetoothDevice.EXTRA_DEVICE, btDeviceParcelable);
@@ -156,21 +158,21 @@ class BTDeviceCheckingIntent extends Intent {
         Log.d(TAG, "Start of equals function");
         if (!(obj instanceof Intent)) {
             return false;
-        } else{
-        BluetoothDevice thisDevice = this.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-        BluetoothDevice otherDevice = ((Intent) obj).getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-        String thisAction= this.getAction();
-        String otherAction=((Intent) obj).getAction();
-        if (thisDevice==null^otherDevice==null){
-            Log.d(TAG, " DeviceCheckingIntent, NOTEQUAL: one of devices is null " );
-            return false;
-        }
-        if (thisDevice == null&&otherDevice==null ) {
-            Log.d(TAG, "DeviceCheckingIntent STARTCOMPARISINGBYACTION ");
-            return thisAction.equals(otherAction);
-        }
+        } else {
+            BluetoothDevice thisDevice = this.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+            BluetoothDevice otherDevice = ((Intent) obj).getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+            String thisAction = this.getAction();
+            String otherAction = ((Intent) obj).getAction();
+            if (thisDevice == null ^ otherDevice == null) {
+                Log.d(TAG, " DeviceCheckingIntent, NOTEQUAL: one of devices is null ");
+                return false;
+            }
+            if (thisDevice == null && otherDevice == null) {
+                Log.d(TAG, "DeviceCheckingIntent STARTCOMPARISINGBYACTION ");
+                return thisAction.equals(otherAction);
+            }
             Log.d(TAG, "DeviceCheckingIntent STARTCOMPARISING_BY_ACTION_AND_DEVICE ");
-        return thisAction.equals(otherAction)&& thisDevice.equals(otherDevice);
+            return thisAction.equals(otherAction) && thisDevice.equals(otherDevice);
         }
     }
 

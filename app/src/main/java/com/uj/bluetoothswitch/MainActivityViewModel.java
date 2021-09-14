@@ -30,50 +30,49 @@ public class MainActivityViewModel extends ViewModel {
     }
 
 
-
     public MainActivityViewModel(Context context) {
         super();
-        this.mContext=context;
-        mDeviceDB=DeviceDB.getInstance(context);
-        appContext=(BluetoothSwitcherApp) mContext.getApplicationContext();
+        this.mContext = context;
+        mDeviceDB = DeviceDB.getInstance(context);
+        appContext = (BluetoothSwitcherApp) mContext.getApplicationContext();
     }
 
-    public DeviceDB getDeviceDb(){return mDeviceDB;}
+    public DeviceDB getDeviceDb() {
+        return mDeviceDB;
+    }
 
 
-
-    public MutableLiveData<Set<DeviceEntity>> getDiscoveredDevicesLD(){
-     if (discoveredDevicesLD ==null){
-         this.discoveredDevicesLD=new MutableLiveData<>(new HashSet<>());
-         return discoveredDevicesLD;
-     }   else{
-         return discoveredDevicesLD;
-     }
+    public MutableLiveData<Set<DeviceEntity>> getDiscoveredDevicesLD() {
+        if (discoveredDevicesLD == null) {
+            this.discoveredDevicesLD = new MutableLiveData<>(new HashSet<>());
+            return discoveredDevicesLD;
+        } else {
+            return discoveredDevicesLD;
+        }
     }
 
     public MutableLiveData<Boolean> getIsServerRunningLD() {
-        if(mIsServerRunningLD ==null){
-            this.mIsServerRunningLD =new MutableLiveData<>(false);
+        if (mIsServerRunningLD == null) {
+            this.mIsServerRunningLD = new MutableLiveData<>(false);
         }
         return mIsServerRunningLD;
     }
 
 
     public MutableLiveData<BluetoothDevice> getCurrentlyConnectedSoundDeviceLD() {
-       if(mCurrentlyConnectedSoundDeviceLD==null){
-           this.mCurrentlyConnectedSoundDeviceLD=new MutableLiveData<>(null);
-       }
+        if (mCurrentlyConnectedSoundDeviceLD == null) {
+            this.mCurrentlyConnectedSoundDeviceLD = new MutableLiveData<>(null);
+        }
         return mCurrentlyConnectedSoundDeviceLD;
     }
 
 
-
-
-    public static class MainActivityVMFactory implements ViewModelProvider.Factory{
+    public static class MainActivityVMFactory implements ViewModelProvider.Factory {
 
         private final Context context;
-        public MainActivityVMFactory(Context context){
-        this.context=context;
+
+        public MainActivityVMFactory(Context context) {
+            this.context = context;
         }
 
         @NonNull

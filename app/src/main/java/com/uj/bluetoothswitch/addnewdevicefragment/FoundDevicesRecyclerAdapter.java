@@ -27,22 +27,21 @@ import java.util.Set;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
 public class FoundDevicesRecyclerAdapter extends RecyclerView.Adapter {
-    private static final String TAG="FOUND_DEVCIE_RECYCLERVIEW_ADAPTER";
+    private static final String TAG = "FOUND_DEVCIE_RECYCLERVIEW_ADAPTER";
     private MainActivity mActivity;
     private List<DeviceEntity> mContents;
 
 
-
-    public FoundDevicesRecyclerAdapter(MainActivity activity){
-        this.mActivity=activity;
-        LiveData<Set<DeviceEntity>> FoundLD=mActivity.getMainActivityVM().getDiscoveredDevicesLD();
+    public FoundDevicesRecyclerAdapter(MainActivity activity) {
+        this.mActivity = activity;
+        LiveData<Set<DeviceEntity>> FoundLD = mActivity.getMainActivityVM().getDiscoveredDevicesLD();
         setmContents(new ArrayList<>(FoundLD.getValue()));
         FoundLD.observe(mActivity, new Observer<Set<DeviceEntity>>() {
             @Override
             public void onChanged(Set<DeviceEntity> deviceEntities) {
                 setmContents(new ArrayList<>(deviceEntities));
                 FoundDevicesRecyclerAdapter.this.notifyDataSetChanged();
-                Log.d(TAG, "Live Data nptified DataSetChanged, current contents of LD: \n"+deviceEntities);
+                Log.d(TAG, "Live Data nptified DataSetChanged, current contents of LD: \n" + deviceEntities);
             }
         });
 
@@ -60,17 +59,17 @@ public class FoundDevicesRecyclerAdapter extends RecyclerView.Adapter {
     @NotNull
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder(@NonNull @NotNull ViewGroup parent, int viewType) {
-       View holderView= LayoutInflater
-               .from(parent.getContext())
-               .inflate(R.layout.found_device_element,parent,false);
-       return new NewDeviceViewHolder(holderView);
+        View holderView = LayoutInflater
+                .from(parent.getContext())
+                .inflate(R.layout.found_device_element, parent, false);
+        return new NewDeviceViewHolder(holderView);
 
     }
 
     @Override
     public void onBindViewHolder(@NonNull @NotNull RecyclerView.ViewHolder holder, int position) {
-     NewDeviceViewHolder myHolder=(NewDeviceViewHolder) holder;
-     myHolder.setAppearence(mContents.get(position));
+        NewDeviceViewHolder myHolder = (NewDeviceViewHolder) holder;
+        myHolder.setAppearence(mContents.get(position));
     }
 
     @Override
@@ -78,35 +77,36 @@ public class FoundDevicesRecyclerAdapter extends RecyclerView.Adapter {
         return mContents.size();
     }
 
-class NewDeviceViewHolder extends RecyclerView.ViewHolder{
+    class NewDeviceViewHolder extends RecyclerView.ViewHolder {
         private TextView textView;
         private Button addButton;
         private DeviceEntity entity;
-    public NewDeviceViewHolder(@NonNull @NotNull View itemView) {
-        super(itemView);
-        textView=(TextView) itemView.findViewById(R.id.foundDeviceTextView);
-        addButton=(Button) itemView.findViewById(R.id.foundDeviceAddButton);
-    }
 
-    public DeviceEntity getEntity() {
-        return entity;
-    }
+        public NewDeviceViewHolder(@NonNull @NotNull View itemView) {
+            super(itemView);
+            textView = (TextView) itemView.findViewById(R.id.foundDeviceTextView);
+            addButton = (Button) itemView.findViewById(R.id.foundDeviceAddButton);
+        }
 
-    public void setAppearence(DeviceEntity entity){
-        this.entity=entity;
-        this.textView.setText(entity.deviceName+"\n"+entity.macAdress);
-        this.addButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                DeviceDAO dao= mActivity.getMainActivityVM().getDeviceDb().deviceDAO();
-                dao.insertAll(NewDeviceViewHolder.this.getEntity())
-                        .subscribeOn(Schedulers.io())
-                        .doOnComplete(()-> Log.d(TAG, "onClick: new element inserted into DB"))
-                        .subscribe();
+        public DeviceEntity getEntity() {
+            return entity;
+        }
 
-            }
-        });
+        public void setAppearence(DeviceEntity entity) {
+            this.entity = entity;
+            this.textView.setText(entity.deviceName + "\n" + entity.macAdress);
+            this.addButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    DeviceDAO dao = mActivity.getMainActivityVM().getDeviceDb().deviceDAO();
+                    dao.insertAll(NewDeviceViewHolder.this.getEntity())
+                            .subscribeOn(Schedulers.io())
+                            .doOnComplete(() -> Log.d(TAG, "onClick: new element inserted into DB"))
+                            .subscribe();
+
+                }
+            });
+        }
     }
-}
 
 }

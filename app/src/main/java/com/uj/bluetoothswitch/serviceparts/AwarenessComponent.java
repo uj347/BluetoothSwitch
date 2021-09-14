@@ -73,7 +73,7 @@ public class AwarenessComponent {
     }
 
     private void launchTimedChecker() {
-        mMainDisposable.add(Observable.interval(10, TimeUnit.SECONDS)
+        mMainDisposable.add(Observable.interval(5, TimeUnit.SECONDS)
                 
                 .filter(num-> this.checkAndCorrectCurrentState())
                 .map(num->mServiceStateLD.getValue())

@@ -57,12 +57,15 @@ public class BroadcastInterpreter {
                         }),
                 mUserCommandsBroadcastReceiver
                         .getUserSeeksDisonnectObservable()
+                        .doOnNext(devOpt->Log.d(TAG, "Interpreted DISCONNECT COMMAND  "))
                         .subscribe(deviceOptional -> {
                             BluetoothDevice device= deviceOptional.orElse(null);
                             mCommander.onDisconnect(device);
                         }),
                 mUserCommandsBroadcastReceiver
                         .getUserSeeksServiceStateObservable()
+                        .doOnNext(devOpt->Log.d(TAG, "Interpreted FORCEDSTATENOTIFICATION COMMAND  "))
+
                         .subscribe(obj-> mAwarenessCompoent.forcedStateNotification()),
                 mUserCommandsBroadcastReceiver
                         .getUserSeeksStopServObservable()

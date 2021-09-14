@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.os.Environment;
 import android.util.Log;
 import android.util.Pair;
+import android.widget.Toast;
 
 import com.uj.bluetoothswitch.serviceparts.broadcastreceivers.SoundprofilesBroadcastReciever;
 import com.uj.bluetoothswitch.serviceparts.connectionpart.BTInquirer;
@@ -203,7 +204,7 @@ public class Commander {
                                 }
 
                             }
-//TODO Впихнуть просьое прямое подклюение  к девайсу
+
                             if (independentInquiryRequired.get()) {
                                 Log.d(TAG, "Starting independent Inquiries");
                                 Single.<Boolean>create(
@@ -282,10 +283,12 @@ public class Commander {
         mCommandSubject.onNext(command);
 
     }
-
+//TODO
     public void onDisconnect(BluetoothDevice deviceToDisconnectFrom) {
+        Log.d(TAG, "onDisconnect: invoked");
         if (mManager.isFullyConstruted()) {
             if (deviceToDisconnectFrom != null) {
+                Log.d(TAG, "onDisconnect: withSpecifiedDeviceBranch");
                 mCommandDisposable.add(
                         mManager.tryDisconnectFromDevice(deviceToDisconnectFrom.getAddress())
                                 .subscribeOn(Schedulers.io())
@@ -295,6 +298,7 @@ public class Commander {
                                 )
                 );
             } else {
+                Log.d(TAG, "onDisconnect: withOutSpecifiedDeviceBranch");
                 mCommandDisposable.add(
                         mManager.tryDisconnectFromCurrentDevice()
                                 .subscribeOn(Schedulers.io())
@@ -305,6 +309,8 @@ public class Commander {
                 );
             }
 
+        }else{
+            Toast.makeText(mServiceInstance,"SoundProfileManager is not ready yet!",Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -330,6 +336,10 @@ public class Commander {
     }
 
     private void stopInquiries() {
+        if(mServiceInstance!=null){
+            mServiceInstance.exposeBroadcastInterpreter()
+                    .setManualDisconnectOverride(false);
+        }
         if (mInquirer != null) {
             mInquirer.stopInqueries();
         }

@@ -152,13 +152,15 @@ public boolean isFullyConstruted(){
 
     @Override
     public Completable tryDisconnectFromCurrentDevice() {
-        while (!this.isFullyConstruted()){};
-        List<BluetoothDevice> currentlyConectedDevices=this.getConnectedDevices();
-        return Observable.fromIterable(currentlyConectedDevices)
-                .concatMapCompletableDelayError(bluetoothDevice -> {
-                    return tryDisconnectFromDevice(bluetoothDevice.getAddress());
-                });
-
+        if (!this.isFullyConstruted()){
+            return Completable.error(new RuntimeException("soundManager isn't fully constructed"));
+        }else {
+            List<BluetoothDevice> currentlyConectedDevices = this.getConnectedDevices();
+            return Observable.fromIterable(currentlyConectedDevices).take(1)
+                    .concatMapCompletableDelayError(bluetoothDevice -> {
+                        return tryDisconnectFromDevice(bluetoothDevice.getAddress());
+                    });
+        }
     }
 
     @Override

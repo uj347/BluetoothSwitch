@@ -18,6 +18,7 @@ import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
+import io.reactivex.rxjava3.schedulers.Schedulers;
 import io.reactivex.rxjava3.subjects.PublishSubject;
 
 public class AwarenessComponent {
@@ -113,7 +114,7 @@ public class AwarenessComponent {
                 connectedDevices.isEmpty() ? null : connectedDevices.get(0);
         ServiceState currentState = mServiceStateLD.getValue();
         if (currentState == null) {
-
+            Log.d(TAG, "checkAndCorrectCurrentState: current stae is null");
             return false;
         }
         if (currentBTDevice != null &&

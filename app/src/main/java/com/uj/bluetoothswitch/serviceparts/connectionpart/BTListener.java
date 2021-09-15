@@ -65,8 +65,8 @@ public class BTListener implements IListener {
                     BluetoothSocket tempSocket = null;
                     BluetoothServerSocket serverSocket = null;
                     try {
-                        serverSocket = mAdapter.listenUsingRfcommWithServiceRecord(BluetoothSwitcherApp.APP_NAME, mUuid);
                         mAdapter.cancelDiscovery();
+                        serverSocket = mAdapter.listenUsingRfcommWithServiceRecord(BluetoothSwitcherApp.APP_NAME, mUuid);
                         Log.d(TAG, "Before incoming connection accepted");
                         tempSocket = serverSocket.accept();
                         Log.d(TAG, "Incomming connection accepted with socket : " + tempSocket.toString());

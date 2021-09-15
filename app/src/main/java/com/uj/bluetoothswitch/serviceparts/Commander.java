@@ -77,17 +77,17 @@ public class Commander {
                     @Override
                     public void onNext(@NonNull Pair<String, Completable> pair) {
                         Log.d(TAG, "NExt command in mainDispatcher");
-
+                        mCommandDisposable.clear();
+                        Log.d(TAG, "Command disposable cleared ");
                         pair.second
                                 .subscribeOn(Schedulers.io())
-                                .doOnTerminate(() -> {
-                                    mCommandDisposable.clear();
-                                    Log.d(TAG, "Command disposable cleared ");
-                                })
+//                                .doOnTerminate(() -> {
+//                                    mCommandDisposable.clear();
+//                                    Log.d(TAG, "Command disposable cleared ");
+//                                })
                                 .subscribe(new CompletableObserver() {
                                     @Override
                                     public void onSubscribe(@NonNull Disposable d) {
-
                                         mCommandDisposable.add(d);
                                         Log.d(TAG, "Command subscribed: " + pair.first);
                                     }
@@ -278,8 +278,9 @@ public class Commander {
         mServiceInstance.setCurrentState(ServiceState.STATE_LISTENING);
         mNotificationFactory.postWithConectedDevice(deviceToListenWith);
         stopInquiriesAndReplies();
+        //todo try to subscribeon
         Pair<String, Completable> command = new Pair<>("onListen " + deviceToListenWith,
-                mReplier.waitForInquiry(deviceToListenWith));
+                mReplier.waitForInquiry(deviceToListenWith).subscribeOn(Schedulers.newThread()));
         mCommandSubject.onNext(command);
 
     }

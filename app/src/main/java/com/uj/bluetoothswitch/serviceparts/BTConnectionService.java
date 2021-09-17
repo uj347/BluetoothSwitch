@@ -177,6 +177,7 @@ public class BTConnectionService extends Service {
         unregisterReceiver(mUserCommandsBroadcastReceiver);
         mDisposables.clear();
         mSoundProfileManager.disposeResources();
+        mCommander.disposeCommaderResources();
         super.onDestroy();
     }
 

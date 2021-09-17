@@ -4,8 +4,6 @@ package com.uj.bluetoothswitch.serviceparts;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
-import android.content.Intent;
-import android.os.Environment;
 import android.util.Log;
 import android.util.Pair;
 import android.widget.Toast;
@@ -17,6 +15,8 @@ import com.uj.bluetoothswitch.serviceparts.connectionpart.IInquirer;
 import com.uj.bluetoothswitch.serviceparts.connectionpart.IReplier;
 import com.uj.bluetoothswitch.serviceparts.soundprofilepart.SoundProfileManager;
 
+import org.reactivestreams.Subscription;
+
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -24,16 +24,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.annotations.NonNull;
+import io.reactivex.rxjava3.core.BackpressureStrategy;
 import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.CompletableObserver;
+import io.reactivex.rxjava3.core.FlowableSubscriber;
 import io.reactivex.rxjava3.core.Observer;
 import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.disposables.Disposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
-import io.reactivex.rxjava3.subjects.BehaviorSubject;
 import io.reactivex.rxjava3.subjects.PublishSubject;
 
 public class Commander {
@@ -60,18 +60,19 @@ public class Commander {
         mReplier = new BTReplier(mManager);
         mSoundProfBR = mServiceInstance.exposeSoundProfileBR();
         mNotificationFactory = mServiceInstance.exposeNotificationfactory();
-
     }
 
 
     public void startCommander() {
         mCommandSubject
+                .serialize()
                 .observeOn(Schedulers.newThread())
                 .filter(completable -> mManager.isFullyConstruted())
                 .subscribe(new Observer<Pair<String, Completable>>() {
                     @Override
                     public void onSubscribe(@NonNull Disposable d) {
                         mMainDisposable.add(d);
+
                     }
 
                     @Override
@@ -165,7 +166,7 @@ public class Commander {
 //                                        mCommandDisposable.add(
                                         mSoundProfBR
                                                 .getDisconnectedObservable()
-                                                .timeout(6, TimeUnit.SECONDS)
+                                                .timeout(1500, TimeUnit.MILLISECONDS)
                                                 .take(1)
                                                 .blockingSubscribe(
                                                         (device) -> {
@@ -185,7 +186,7 @@ public class Commander {
 //                                        mCommandDisposable.add(
                                         mSoundProfBR
                                                 .getConnectedObservable()
-                                                .timeout(4, TimeUnit.SECONDS)
+                                                .timeout(2500, TimeUnit.MILLISECONDS)
                                                 .take(1)
                                                 .blockingSubscribe(
                                                         (device) -> {
@@ -215,7 +216,7 @@ public class Commander {
 
                                             mSoundProfBR
                                                     .getConnectedObservable()
-                                                    .timeout(4, TimeUnit.SECONDS)
+                                                    .timeout(2500, TimeUnit.MILLISECONDS)
                                                     .take(1)
                                                     .blockingSubscribe(
                                                             (device) -> {
@@ -278,14 +279,13 @@ public class Commander {
         mServiceInstance.setCurrentState(ServiceState.STATE_LISTENING);
         mNotificationFactory.postWithConectedDevice(deviceToListenWith);
         stopInquiriesAndReplies();
-        //todo try to subscribeon
         Pair<String, Completable> command = new Pair<>("onListen " + deviceToListenWith,
                 mReplier.waitForInquiry(deviceToListenWith).subscribeOn(Schedulers.newThread()));
         mCommandSubject.onNext(command);
 
     }
 
-    //TODO
+
     public void onDisconnect(BluetoothDevice deviceToDisconnectFrom) {
         Log.d(TAG, "onDisconnect: invoked");
         if (mManager.isFullyConstruted()) {

@@ -66,7 +66,10 @@ public class BroadcastInterpreter {
                         .getUserSeeksServiceStateObservable()
                         .doOnNext(devOpt -> Log.d(TAG, "Interpreted FORCEDSTATENOTIFICATION COMMAND  "))
 
-                        .subscribe(obj -> mAwarenessCompoent.forcedStateNotification()),
+                        .subscribe(obj -> {if(mAwarenessCompoent!=null) {
+                            mAwarenessCompoent.forcedStateNotification();
+                        }
+                        }),
                 mUserCommandsBroadcastReceiver
                         .getUserSeeksStopServObservable()
                         .subscribe(obj -> mCommander.onStop())

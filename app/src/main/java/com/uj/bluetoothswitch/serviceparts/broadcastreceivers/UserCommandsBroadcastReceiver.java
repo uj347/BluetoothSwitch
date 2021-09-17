@@ -39,20 +39,20 @@ public class UserCommandsBroadcastReceiver extends BroadcastReceiver {
     }
 
     public Observable<Optional<BluetoothDevice>> getUserSeeksConnectObservable() {
-        return mUserConnectSJ.debounce(200, TimeUnit.MILLISECONDS);
+        return mUserConnectSJ.debounce(1, TimeUnit.SECONDS);
     }
 
     public Observable<Optional<BluetoothDevice>> getUserSeeksDisonnectObservable() {
-        return mUserDisconnectSJ.debounce(200, TimeUnit.MILLISECONDS);
+        return mUserDisconnectSJ.debounce(1, TimeUnit.SECONDS);
     }
 
 
     public Observable<Object> getUserSeeksStopServObservable() {
-        return mUserStopServiceSJ.debounce(200, TimeUnit.MILLISECONDS);
+        return mUserStopServiceSJ.debounce(1, TimeUnit.SECONDS);
     }
 
     public Observable<Object> getUserSeeksServiceStateObservable() {
-        return mUserSeeksServiceStateSJ.debounce(200, TimeUnit.MILLISECONDS);
+        return mUserSeeksServiceStateSJ.debounce(1, TimeUnit.SECONDS);
     }
 
 

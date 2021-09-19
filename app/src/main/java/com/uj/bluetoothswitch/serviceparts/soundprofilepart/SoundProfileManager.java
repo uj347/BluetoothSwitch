@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.Observable;
+import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import io.reactivex.rxjava3.subjects.PublishSubject;
 import io.reactivex.rxjava3.subjects.Subject;
@@ -30,75 +31,52 @@ public class SoundProfileManager implements IBluetoothProfileManager {
     private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
     private BluetoothA2dp mA2dpProxy;
     private BluetoothHeadset mHeadsetProxy;
-    private A2dpServiceListener mServiceListener = new A2dpServiceListener();
+    private ConstructorListener mConstructorListener = new ConstructorListener();
+    private reNewSoundProfilesListener mRenewListener = new reNewSoundProfilesListener();
     private Method mA2DPConnectMethod;
     private Method mHeadsetConnectMethod;
     private Method mHeadsetDisconnectMethod;
-    private Method mUnbindMethod;
     private Method mA2DPDisconnectMethod;
     private Subject<Object> proxyRecievedSubject = PublishSubject.create();
     private AtomicBoolean isConstructed = new AtomicBoolean();
+    private final Context mContext;
+    private final CompositeDisposable mDisposable = new CompositeDisposable();
 
 
     public SoundProfileManager(Context context) {
         Log.d(TAG, "SoundProfile: in constructor");
-        Completable.create(e -> {
-            mAdapter.getProfileProxy(context, mServiceListener, BluetoothProfile.A2DP);
-            mAdapter.getProfileProxy(context, mServiceListener, BluetoothProfile.HEADSET);
+        this.mContext = context;
+        mDisposable.add(Completable.create(e -> {
+                    mAdapter.getProfileProxy(context, mConstructorListener, BluetoothProfile.A2DP);
+                    mAdapter.getProfileProxy(context, mConstructorListener, BluetoothProfile.HEADSET);
 
-            proxyRecievedSubject
-                    .observeOn(Schedulers.newThread())
-                    .distinct()
-                    .take(2)
-                    .subscribe(
-                            (o) -> {
-                                Log.d(TAG, "recieved command in signalSubj: " + o);
-                            },
-                            (err) -> {
-                                Log.d(TAG, "Error occured in signal subject: " + err);
-                            },
-                            () -> {
-                                isConstructed.set(true);
-                                if (!e.isDisposed()) e.onComplete();
-                            });
-        })
-
+                    mDisposable.add(
+                            proxyRecievedSubject
+                                    .observeOn(Schedulers.newThread())
+                                    .distinct()
+                                    .take(2)
+                                    .subscribe(
+                                            (o) -> {
+                                                Log.d(TAG, "recieved command in signalSubj: " + o);
+                                            },
+                                            (err) -> {
+                                                Log.d(TAG, "Error occured in signal subject: " + err);
+                                            },
+                                            () -> {
+                                                isConstructed.set(true);
+                                                if (!e.isDisposed()) e.onComplete();
+                                            })
+                    );
+                })
                 .subscribe(
-                        () -> {
-
-
-                            mA2DPConnectMethod = mA2dpProxy.getClass()
-                                    .getMethod("connect", BluetoothDevice.class);
-                            mA2DPConnectMethod.setAccessible(true);
-
-                            mA2DPDisconnectMethod = mA2dpProxy.getClass()
-                                    .getMethod("disconnect", BluetoothDevice.class);
-                            mA2DPDisconnectMethod.setAccessible(true);
-                            //disconnectSink
-
-                            mHeadsetConnectMethod = mHeadsetProxy.getClass()
-                                    .getMethod("connect", BluetoothDevice.class);
-                            mHeadsetConnectMethod.setAccessible(true);
-
-
-                            mHeadsetDisconnectMethod = mHeadsetProxy.getClass()
-                                    .getMethod("disconnect", BluetoothDevice.class);
-                            mHeadsetDisconnectMethod.setAccessible(true);
-
-
-                            mUnbindMethod = mAdapter.getRemoteDevice(PHONEMAC)
-                                    .getClass()
-                                    .getMethod("removeBond", (Class[]) null);
-                            mUnbindMethod.setAccessible(true);
-
-
-                            Log.d(TAG, " Constructor completable done");
-                        },
-                        (error) -> {
-                            Log.d(TAG, " error occured in creation: " + error.getMessage());
-                        }
-                );
-
+                                () -> {
+                                    Log.d(TAG, " Constructor completable done");
+                                },
+                                (error) -> {
+                                    Log.d(TAG, " error occured in creation: " + error.getMessage());
+                                }
+                        )
+        );
     }
 
     public boolean isFullyConstruted() {
@@ -146,7 +124,23 @@ public class SoundProfileManager implements IBluetoothProfileManager {
             if (!e.isDisposed()) {
                 e.onComplete();
             }
-        });
+        }).doOnError(exc-> {
+            if(exc instanceof SoundProxyException){
+                Log.d(TAG, "tryConnect exception occured method doesn't invoked");
+
+                if(exc instanceof A2DPProxyException){
+                    Log.d(TAG, "tryConnect exception occured method doesnt invoked");
+                    renewA2DPProxy();
+                }
+                if(exc instanceof HeadSetProxyException){
+                    renewHEADSETProxy();
+                }
+            }
+        })
+                .retry(3,exc->exc instanceof SoundProxyException)
+                .subscribeOn(Schedulers.io());
+
+
 
     }
 
@@ -173,44 +167,54 @@ public class SoundProfileManager implements IBluetoothProfileManager {
             if (!e.isDisposed()) {
                 e.onComplete();
             }
-        });
-        //.subscribeOn(Schedulers.io());
+        }).doOnError(exc-> {
+            if(exc instanceof SoundProxyException){
+                if(exc instanceof A2DPProxyException){
+                    renewA2DPProxy();
+                }
+                if(exc instanceof HeadSetProxyException){
+                    renewHEADSETProxy();
+                }
+            }
+                })
+                .retry(3,exc->exc instanceof SoundProxyException)
+                .subscribeOn(Schedulers.io());
 //                .delay(50, TimeUnit.MILLISECONDS);
 
     }
 
-    private synchronized void invokeConnectA2DP(BluetoothDevice device) throws InvocationTargetException, IllegalAccessException {
+    private synchronized void invokeConnectA2DP(BluetoothDevice device) throws InvocationTargetException, IllegalAccessException, A2DPProxyException {
         if (mA2DPConnectMethod != null) {
-            mA2DPConnectMethod.invoke(mA2dpProxy, device);
+            if(!(boolean)mA2DPConnectMethod.invoke(mA2dpProxy, device)) throw new A2DPProxyException();
         }
     }
 
-    private synchronized void invokeDisconnectA2DP(BluetoothDevice device) throws InvocationTargetException, IllegalAccessException {
+    private synchronized void invokeDisconnectA2DP(BluetoothDevice device) throws InvocationTargetException, IllegalAccessException,A2DPProxyException {
         if (mA2DPDisconnectMethod != null) {
-            mA2DPDisconnectMethod.invoke(mA2dpProxy, device);
+            if(!(boolean)mA2DPDisconnectMethod.invoke(mA2dpProxy, device)) throw new A2DPProxyException();
         }
     }
 
-    private synchronized void invokeUnbind(BluetoothDevice device) throws InvocationTargetException, IllegalAccessException {
-        if (mUnbindMethod != null) {
-            mUnbindMethod.invoke(device, (Object[]) null);
-        }
-    }
 
-    private synchronized void invokeConnectHeadset(BluetoothDevice device) throws InvocationTargetException, IllegalAccessException {
+    private synchronized void invokeConnectHeadset(BluetoothDevice device) throws InvocationTargetException, IllegalAccessException,HeadSetProxyException,HeadSetProxyException {
         if (mHeadsetConnectMethod != null) {
-            mHeadsetConnectMethod.invoke(mHeadsetProxy, device);
+            if(!(boolean)mHeadsetConnectMethod.invoke(mHeadsetProxy, device)) throw new HeadSetProxyException();
+
         }
     }
 
     private synchronized void invokeDisconnectHeadset(BluetoothDevice device) throws InvocationTargetException, IllegalAccessException {
         if (mHeadsetDisconnectMethod != null) {
-            mHeadsetDisconnectMethod.invoke(mHeadsetProxy, device);
+            if(!(boolean)mHeadsetDisconnectMethod.invoke(mHeadsetProxy, device)) throw new HeadSetProxyException();
         }
+
     }
+
 
     @Override
     public void disposeResources() {
+        Log.d(TAG, "Disposing Sound profile manager resources");
+        mDisposable.clear();
         if (mA2dpProxy != null) {
             mAdapter.closeProfileProxy(BluetoothProfile.A2DP, mA2dpProxy);
         }
@@ -219,7 +223,100 @@ public class SoundProfileManager implements IBluetoothProfileManager {
         }
     }
 
-    private class A2dpServiceListener implements BluetoothProfile.ServiceListener {
+    //TODO
+    private void renewA2DPProxy()throws InterruptedException {
+        Log.d(TAG, "renewHEADSETProxy: Invoking renewal Of headset");
+        mAdapter.getProfileProxy(mContext, mRenewListener, BluetoothProfile.A2DP);
+        Thread.sleep(50);
+    }
+
+    //TODO
+    private void renewHEADSETProxy()throws InterruptedException {
+        Log.d(TAG, "renewHEADSETProxy: Invoking renewal Of headset");
+        mAdapter.getProfileProxy(mContext, mRenewListener, BluetoothProfile.HEADSET);
+        Thread.sleep(50);
+    }
+
+    private void extractMethodsFromProfileProxy(int profile, BluetoothProfile proxy) throws NoSuchMethodException {
+        if (profile == BluetoothProfile.A2DP) {
+            mA2DPConnectMethod = mA2dpProxy.getClass()
+                    .getMethod("connect", BluetoothDevice.class);
+            mA2DPConnectMethod.setAccessible(true);
+
+            mA2DPDisconnectMethod = mA2dpProxy.getClass()
+                    .getMethod("disconnect", BluetoothDevice.class);
+            mA2DPDisconnectMethod.setAccessible(true);
+
+        }
+        if (profile == BluetoothProfile.HEADSET) {
+
+            mHeadsetConnectMethod = mHeadsetProxy.getClass()
+                    .getMethod("connect", BluetoothDevice.class);
+            mHeadsetConnectMethod.setAccessible(true);
+
+
+            mHeadsetDisconnectMethod = mHeadsetProxy.getClass()
+                    .getMethod("disconnect", BluetoothDevice.class);
+            mHeadsetDisconnectMethod.setAccessible(true);
+
+        }
+    }
+
+    private void setProxyMethodsToNull(int profile,String context) {
+        Log.d(TAG, "setProxyMethodsToNull from : "+ context);
+        if (profile == BluetoothProfile.A2DP) {
+            mA2DPConnectMethod = null;
+            mA2DPDisconnectMethod = null;
+        }
+        if (profile == BluetoothProfile.HEADSET) {
+            mHeadsetConnectMethod = null;
+            mHeadsetDisconnectMethod = null;
+        }
+    }
+    private void setProxiesToNull(int profile, String context){
+        Log.d(TAG, "setProxiesToNull invoked from context: "+context);
+        if (profile == BluetoothProfile.A2DP) {
+            mA2dpProxy = null;
+        }
+        if (profile == BluetoothProfile.HEADSET) {
+            mHeadsetProxy = null;
+        }
+    }
+
+
+
+
+
+    private class reNewSoundProfilesListener implements BluetoothProfile.ServiceListener {
+        @Override
+        public void onServiceConnected(int profile, BluetoothProfile proxy) {
+            Log.d(TAG, "onServiceConnected in renewListener");
+            try {
+                extractMethodsFromProfileProxy(profile,proxy);
+            } catch (NoSuchMethodException e) {
+                Log.d(TAG, "onServiceConnected: Extraction of proxy methods failed");
+            }
+            if (profile == BluetoothProfile.A2DP) {
+                Log.d(TAG, "A2DP renewed");
+                mA2dpProxy = (BluetoothA2dp) proxy;
+            }
+            if (profile == BluetoothProfile.HEADSET) {
+                Log.d(TAG, "Headset renewed");
+                mHeadsetProxy = (BluetoothHeadset) proxy;
+            }
+
+
+        }
+
+        @Override
+        public void onServiceDisconnected(int profile) {
+            Log.d(TAG, "onServiceDisconnected in renewListener");
+            setProxyMethodsToNull(profile, "Renew listener");
+            setProxiesToNull(profile,"Renew listener");
+        }
+    }
+
+    private class ConstructorListener implements BluetoothProfile.ServiceListener {
         @Override
         public void onServiceConnected(int profile, BluetoothProfile proxy) {
             if (profile == BluetoothProfile.A2DP) {
@@ -232,21 +329,23 @@ public class SoundProfileManager implements IBluetoothProfileManager {
                 mHeadsetProxy = (BluetoothHeadset) proxy;
                 proxyRecievedSubject.onNext(2);
             }
+            try {
+                extractMethodsFromProfileProxy(profile,proxy);
+            } catch (NoSuchMethodException e) {
+                Log.d(TAG, "onServiceConnected: Extraction of proxy methods failed");
+            }
 
         }
 
         @Override
         public void onServiceDisconnected(int profile) {
-            if (profile == BluetoothProfile.A2DP) {
-                Log.d(TAG, "onServiceDisconnected:!!!!!");
-                mA2dpProxy = null;
-            }
-            if (profile == BluetoothProfile.HEADSET) {
-                Log.d(TAG, "onServiceDisconnected:!!!!!");
-                mHeadsetProxy = null;
-            }
+            setProxyMethodsToNull(profile, "Constructor listener");
+            setProxiesToNull(profile,"Constructor listener");
         }
 
 
     }
 }
+class SoundProxyException extends RuntimeException{}
+class A2DPProxyException extends SoundProxyException{ }
+class HeadSetProxyException extends SoundProxyException{}

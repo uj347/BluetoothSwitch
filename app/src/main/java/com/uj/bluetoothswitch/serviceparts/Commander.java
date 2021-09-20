@@ -8,6 +8,7 @@ import android.util.Log;
 import android.util.Pair;
 import android.widget.Toast;
 
+import com.uj.bluetoothswitch.disposables.Triple;
 import com.uj.bluetoothswitch.serviceparts.broadcastreceivers.SoundprofilesBroadcastReciever;
 import com.uj.bluetoothswitch.serviceparts.connectionpart.BTInquirer;
 import com.uj.bluetoothswitch.serviceparts.connectionpart.BTReplier;
@@ -49,8 +50,8 @@ public class Commander {
     private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
     private SoundprofilesBroadcastReciever mSoundProfBR;
     private final CompositeDisposable mMainDisposable = new CompositeDisposable();
-    private final CompositeDisposable mCommandDisposable = new CompositeDisposable();
-    private final PublishSubject<Pair<String, Completable>> mCommandSubject = PublishSubject.create();
+    private CompositeDisposable mPreviousCommandDisposable = new CompositeDisposable();
+    private final PublishSubject<Triple<String,CompositeDisposable,Completable>> mCommandSubject = PublishSubject.create();
 
 
     public Commander(BTConnectionService serviceInstance) {
@@ -68,39 +69,36 @@ public class Commander {
                 .serialize()
                 .observeOn(Schedulers.newThread())
                 .filter(completable -> mManager.isFullyConstruted())
-                .subscribe(new Observer<Pair<String, Completable>>() {
+                .subscribe(new Observer<Triple<String,CompositeDisposable,Completable>>() {
                     @Override
                     public void onSubscribe(@NonNull Disposable d) {
                         mMainDisposable.add(d);
-
                     }
 
                     @Override
-                    public void onNext(@NonNull Pair<String, Completable> pair) {
+                    public void onNext(@NonNull Triple<String,CompositeDisposable,Completable> triple) {
                         Log.d(TAG, "NExt command in mainDispatcher");
-                        mCommandDisposable.clear();
-                        Log.d(TAG, "Command disposable cleared ");
-                        pair.second
+                        mPreviousCommandDisposable.clear();
+                        mPreviousCommandDisposable= triple.second;
+                        Log.d(TAG, "PreviousCommand disposable cleared ");
+                        triple.third
                                 .subscribeOn(Schedulers.io())
-//                                .doOnTerminate(() -> {
-//                                    mCommandDisposable.clear();
-//                                    Log.d(TAG, "Command disposable cleared ");
-//                                })
                                 .subscribe(new CompletableObserver() {
                                     @Override
                                     public void onSubscribe(@NonNull Disposable d) {
-                                        mCommandDisposable.add(d);
-                                        Log.d(TAG, "Command subscribed: " + pair.first);
+                                        mPreviousCommandDisposable.add(d);
+                                        Log.d(TAG, "Command subscribed: " + triple.first);
                                     }
 
                                     @Override
                                     public void onComplete() {
-                                        Log.d(TAG, "Command completed: " + pair.first);
+                                        Log.d(TAG, "Command completed: " + triple.first);
+                                        onIdle();
                                     }
 
                                     @Override
                                     public void onError(@NonNull Throwable e) {
-                                        Log.d(TAG, "Error occured in command" + pair.first);
+                                        Log.d(TAG, "Error occured in command" + triple.first);
                                         onIdle();
 
                                     }
@@ -127,7 +125,7 @@ public class Commander {
         stopInquiriesAndReplies();
         mServiceInstance.setCurrentState(ServiceState.STATE_IDLE);
         mNotificationFactory.postWithNoDevice();
-        Pair<String, Completable> command = new Pair<>("onIdle", Completable.never());
+        Triple<String, CompositeDisposable, Completable> command = new Triple<>("onIdle", new CompositeDisposable(),Completable.never());
         mCommandSubject.onNext(command);
     }
 
@@ -136,7 +134,9 @@ public class Commander {
         Log.d(TAG, "onReach with device:" + seekableSoundDevice);
         stopInquiriesAndReplies();
         mServiceInstance.setCurrentState(ServiceState.STATE_REACHING);
-        Pair<String, Completable> command = new Pair<>("onReach " + seekableSoundDevice,
+        CompositeDisposable commandDisposable=new CompositeDisposable();
+        Triple<String, CompositeDisposable, Completable> command= new Triple<>("onReach " + seekableSoundDevice,
+                commandDisposable,
                 Completable.create(
                         emitter -> {
                             AtomicBoolean independentInquiryRequired = new AtomicBoolean(true);
@@ -162,7 +162,10 @@ public class Commander {
                                         Log.d(TAG, "onReach: already connected to required device, proceeding on listen");
                                         onListen(currentlyConnected);
                                     } else {
-                                        mManager.tryDisconnectFromCurrentDevice().subscribe();
+                                        mManager.tryDisconnectFromCurrentDevice().blockingSubscribe(
+                                                ()-> Log.d(TAG, "onReach: trydisconnect success: "),
+                                                (err)-> Log.d(TAG, "onReach: trydisconnect error: "+err)
+                                        );
 //                                        mCommandDisposable.add(
                                         mSoundProfBR
                                                 .getDisconnectedObservable()
@@ -172,14 +175,20 @@ public class Commander {
                                                         (device) -> {
                                                             mManager
                                                                     .tryConnectToSpecifiedDevice(seekableSoundDevice.getAddress())
-                                                                    .subscribe();
+                                                                    .blockingSubscribe(
+                                                                            ()-> Log.d(TAG, "onReach: tryConnect success: "),
+                                                                            (err)-> Log.d(TAG, "onReach: tryConnect error: "+err)
+                                                                    );
                                                         },
                                                         (err) -> {
                                                             Log.d(TAG, "Disconnection from device doesn't occured" +
                                                                     ", trying connect to new device anyway");
                                                             mManager
                                                                     .tryConnectToSpecifiedDevice(seekableSoundDevice.getAddress())
-                                                                    .subscribe();
+                                                                    .blockingSubscribe(
+                                                                            ()-> Log.d(TAG, "onReach: tryConnect success: "),
+                                                                            (error)-> Log.d(TAG, "onReach: tryConnect error: "+err)
+                                                                    );
                                                         });
 //                                        );
 
@@ -212,7 +221,10 @@ public class Commander {
                                         sinEmmiter -> {
                                             mManager
                                                     .tryConnectToSpecifiedDevice(seekableSoundDevice.getAddress())
-                                                    .blockingSubscribe();
+                                                    .blockingSubscribe(
+                                                            ()-> Log.d(TAG, "onReach: tryConnect success: "),
+                                                            (err)-> Log.d(TAG, "onReach: tryConnect error: "+err)
+                                                    );
 
                                             mSoundProfBR
                                                     .getConnectedObservable()
@@ -279,7 +291,10 @@ public class Commander {
         mServiceInstance.setCurrentState(ServiceState.STATE_LISTENING);
         mNotificationFactory.postWithConectedDevice(deviceToListenWith);
         stopInquiriesAndReplies();
-        Pair<String, Completable> command = new Pair<>("onListen " + deviceToListenWith,
+        CompositeDisposable commandDisposable=new CompositeDisposable();
+        Triple<String, CompositeDisposable, Completable> command =
+                new Triple<String, CompositeDisposable, Completable>("onListen " + deviceToListenWith,
+                commandDisposable,
                 mReplier.waitForInquiry(deviceToListenWith).subscribeOn(Schedulers.newThread()));
         mCommandSubject.onNext(command);
 
@@ -291,9 +306,8 @@ public class Commander {
         if (mManager.isFullyConstruted()) {
             if (deviceToDisconnectFrom != null) {
                 Log.d(TAG, "onDisconnect: withSpecifiedDeviceBranch");
-                mCommandDisposable.add(
+                mPreviousCommandDisposable.add(
                         mManager.tryDisconnectFromDevice(deviceToDisconnectFrom.getAddress())
-                                .subscribeOn(Schedulers.io())
                                 .subscribe(
                                         () -> Log.d(TAG, "onDisconnect: Disconnection completed"),
                                         (err) -> Log.d(TAG, "onDisconnect: error ocurred: " + err)
@@ -301,7 +315,7 @@ public class Commander {
                 );
             } else {
                 Log.d(TAG, "onDisconnect: withOutSpecifiedDeviceBranch");
-                mCommandDisposable.add(
+                mPreviousCommandDisposable.add(
                         mManager.tryDisconnectFromCurrentDevice()
                                 .subscribeOn(Schedulers.io())
                                 .subscribe(
@@ -326,7 +340,7 @@ public class Commander {
     public void disposeCommaderResources() {
         Log.d(TAG, "Disposing commander resources");
         stopInquiriesAndReplies();
-        mCommandDisposable.clear();
+        mPreviousCommandDisposable.clear();
         mMainDisposable.clear();
     }
 

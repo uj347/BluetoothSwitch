@@ -90,6 +90,7 @@ public class SoundProfileManager implements IBluetoothProfileManager {
                 || mHeadsetProxy.getConnectedDevices().contains(deviceOfIntrest);
 
     }
+    //TODO Переделть обновление прокси на таймед-реализацию
 
     @Override
     public boolean isConnectedViaThisProfile() {
@@ -117,29 +118,14 @@ public class SoundProfileManager implements IBluetoothProfileManager {
                 Log.d(TAG, "tryConnectToDevice bonding invoked");
                 Thread.sleep(3500);
             }
-            Thread.sleep(300);
-            invokeConnectA2DP(deviceOfIntrest);
-            invokeConnectHeadset(deviceOfIntrest);
+                invokeConnectA2DP(deviceOfIntrest);
+                invokeConnectHeadset(deviceOfIntrest);
+
             Log.d(TAG, "tryConnectToDevice: connection invoked");
             if (!e.isDisposed()) {
                 e.onComplete();
             }
-        }).doOnError(exc-> {
-            if(exc instanceof SoundProxyException){
-                Log.d(TAG, "tryConnect exception occured method doesn't invoked");
-
-                if(exc instanceof A2DPProxyException){
-                    Log.d(TAG, "tryConnect exception occured method doesnt invoked");
-                    renewA2DPProxy();
-                }
-                if(exc instanceof HeadSetProxyException){
-                    renewHEADSETProxy();
-                }
-            }
-        })
-                .retry(3,exc->exc instanceof SoundProxyException)
-                .subscribeOn(Schedulers.io());
-
+        });
 
 
     }
@@ -162,50 +148,34 @@ public class SoundProfileManager implements IBluetoothProfileManager {
         return Completable.create(e -> {
             invokeDisconnectA2DP(mAdapter.getRemoteDevice(MAC));
             invokeDisconnectHeadset(mAdapter.getRemoteDevice(MAC));
-//           Thread.sleep(200);
-//           invokeUnbind(sAdapter.getRemoteDevice(MAC));
             if (!e.isDisposed()) {
                 e.onComplete();
             }
-        }).doOnError(exc-> {
-            if(exc instanceof SoundProxyException){
-                if(exc instanceof A2DPProxyException){
-                    renewA2DPProxy();
-                }
-                if(exc instanceof HeadSetProxyException){
-                    renewHEADSETProxy();
-                }
-            }
-                })
-                .retry(3,exc->exc instanceof SoundProxyException)
-                .subscribeOn(Schedulers.io());
-//                .delay(50, TimeUnit.MILLISECONDS);
-
+        });
     }
 
-    private synchronized void invokeConnectA2DP(BluetoothDevice device) throws InvocationTargetException, IllegalAccessException, A2DPProxyException {
+    private synchronized void invokeConnectA2DP(BluetoothDevice device) throws InvocationTargetException, IllegalAccessException {
         if (mA2DPConnectMethod != null) {
-            if(!(boolean)mA2DPConnectMethod.invoke(mA2dpProxy, device)) throw new A2DPProxyException();
+            mA2DPConnectMethod.invoke(mA2dpProxy, device);
         }
     }
 
-    private synchronized void invokeDisconnectA2DP(BluetoothDevice device) throws InvocationTargetException, IllegalAccessException,A2DPProxyException {
+    private synchronized void invokeDisconnectA2DP(BluetoothDevice device) throws InvocationTargetException, IllegalAccessException{
         if (mA2DPDisconnectMethod != null) {
-            if(!(boolean)mA2DPDisconnectMethod.invoke(mA2dpProxy, device)) throw new A2DPProxyException();
+            mA2DPDisconnectMethod.invoke(mA2dpProxy, device);
         }
     }
 
 
-    private synchronized void invokeConnectHeadset(BluetoothDevice device) throws InvocationTargetException, IllegalAccessException,HeadSetProxyException,HeadSetProxyException {
+    private synchronized void invokeConnectHeadset(BluetoothDevice device) throws InvocationTargetException, IllegalAccessException {
         if (mHeadsetConnectMethod != null) {
-            if(!(boolean)mHeadsetConnectMethod.invoke(mHeadsetProxy, device)) throw new HeadSetProxyException();
-
+            mHeadsetConnectMethod.invoke(mHeadsetProxy, device);
         }
     }
 
     private synchronized void invokeDisconnectHeadset(BluetoothDevice device) throws InvocationTargetException, IllegalAccessException {
         if (mHeadsetDisconnectMethod != null) {
-            if(!(boolean)mHeadsetDisconnectMethod.invoke(mHeadsetProxy, device)) throw new HeadSetProxyException();
+           mHeadsetDisconnectMethod.invoke(mHeadsetProxy, device);
         }
 
     }
@@ -226,6 +196,9 @@ public class SoundProfileManager implements IBluetoothProfileManager {
     //TODO
     private void renewA2DPProxy()throws InterruptedException {
         Log.d(TAG, "renewHEADSETProxy: Invoking renewal Of headset");
+       if (mA2dpProxy!=null) {
+               mAdapter.closeProfileProxy(BluetoothProfile.A2DP,mA2dpProxy);
+       }
         mAdapter.getProfileProxy(mContext, mRenewListener, BluetoothProfile.A2DP);
         Thread.sleep(50);
     }
@@ -233,6 +206,10 @@ public class SoundProfileManager implements IBluetoothProfileManager {
     //TODO
     private void renewHEADSETProxy()throws InterruptedException {
         Log.d(TAG, "renewHEADSETProxy: Invoking renewal Of headset");
+        if (mHeadsetProxy!=null) {
+            mAdapter.closeProfileProxy(BluetoothProfile.HEADSET,mHeadsetProxy);
+
+        }
         mAdapter.getProfileProxy(mContext, mRenewListener, BluetoothProfile.HEADSET);
         Thread.sleep(50);
     }
@@ -346,6 +323,4 @@ public class SoundProfileManager implements IBluetoothProfileManager {
 
     }
 }
-class SoundProxyException extends RuntimeException{}
-class A2DPProxyException extends SoundProxyException{ }
-class HeadSetProxyException extends SoundProxyException{}
+

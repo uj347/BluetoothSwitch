@@ -6,6 +6,7 @@ import android.util.Log;
 
 import com.uj.bluetoothswitch.BluetoothSwitcherApp;
 import com.uj.bluetoothswitch.serviceparts.soundprofilepart.IBluetoothProfileManager;
+import com.uj.bluetoothswitch.serviceparts.soundprofilepart.SoundProfileManager;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -106,7 +107,10 @@ public class BTInquirer implements IInquirer<BluetoothDevice> {
                     Log.d(TAG, "Recieved answer: " + answer);
                     if (answer.trim().equals("YES")) {
                         Thread.sleep(900);
-                        mProfileManager.tryConnectToSpecifiedDevice(whatAboutMAC).blockingSubscribe();
+                        mProfileManager.tryConnectToSpecifiedDevice(whatAboutMAC).blockingSubscribe(
+                                ()-> Log.d(TAG, "Inquirer: tryDisConnect success: "),
+                                (err)-> Log.d(TAG, "Inquirer: tryDisConnect error: "+err)
+                        );
                         // mFoundFlag.set(true);
                         if (!emitter.isDisposed()) {
                             emitter.onSuccess(true);

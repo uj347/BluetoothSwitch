@@ -23,13 +23,14 @@ import io.reactivex.rxjava3.subjects.PublishSubject;
 
 public class AwarenessComponent {
     public static final String TAG = "AwarenessComponent";
-    private final PublishSubject<ServiceState> mMainSubject = PublishSubject.create();
+    private final PublishSubject<BTDeviceCheckingIntent> mMainSubject = PublishSubject.create();
     private final CompositeDisposable mMainDisposable = new CompositeDisposable();
     private final BTConnectionService mServiceInstance;
     private final SoundProfileManager mManager;
     private final Commander mCommander;
     private final LiveData<ServiceState> mServiceStateLD;
-    private final Observer<ServiceState> mStateObserver = mMainSubject::onNext;
+    private final Observer<ServiceState> mStateObserver =
+            (serviceState -> mMainSubject.onNext(processStateToIntent(serviceState)));
 
 
     public AwarenessComponent(BTConnectionService serviceInstance) {
@@ -55,13 +56,12 @@ public class AwarenessComponent {
 
     public void startAwarenessComponent() {
         mMainDisposable.add(mMainSubject
-                .map(this::processStateToIntent)
+
                 //todo check there
-                .distinctUntilChanged()
                 .subscribe(
                         (stateIntent) -> {
                             Log.d(TAG, "sending broadcast, intent: " + stateIntent.getAction()
-                                    + " with device "
+                                    + " containing device "
                                     + stateIntent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE));
                             mServiceInstance.sendBroadcast(stateIntent);
                         },
@@ -78,8 +78,10 @@ public class AwarenessComponent {
                 .filter(num -> this.checkAndCorrectCurrentState())
                 .map(num -> mServiceStateLD.getValue())
                 .filter(state -> state != null)
+                .map(this::processStateToIntent)
+                .distinctUntilChanged()
                 .subscribe(
-                        state -> mMainSubject.onNext(state),
+                        mMainSubject::onNext,
                         err -> Log.d(TAG, "Err in timedChecker: " + err)
                 ));
     }
@@ -156,7 +158,6 @@ class BTDeviceCheckingIntent extends Intent {
 
     @Override
     public boolean equals(@Nullable Object obj) {
-        Log.d(TAG, "Start of equals function");
         if (!(obj instanceof Intent)) {
             return false;
         } else {
@@ -165,14 +166,13 @@ class BTDeviceCheckingIntent extends Intent {
             String thisAction = this.getAction();
             String otherAction = ((Intent) obj).getAction();
             if (thisDevice == null ^ otherDevice == null) {
-                Log.d(TAG, " DeviceCheckingIntent, NOTEQUAL: one of devices is null ");
                 return false;
             }
             if (thisDevice == null && otherDevice == null) {
-                Log.d(TAG, "DeviceCheckingIntent STARTCOMPARISINGBYACTION ");
+
                 return thisAction.equals(otherAction);
             }
-            Log.d(TAG, "DeviceCheckingIntent STARTCOMPARISING_BY_ACTION_AND_DEVICE ");
+
             return thisAction.equals(otherAction) && thisDevice.equals(otherDevice);
         }
     }

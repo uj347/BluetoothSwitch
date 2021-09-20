@@ -57,8 +57,8 @@ public class BTReplier implements IReplier<BluetoothDevice> {
                                 .startListening()
 //TODO
                                 .blockingSubscribe(
-                                        () -> Log.d(TAG, "Incomming connection accepted"),
-                                        (err) -> Log.d(TAG, "Incomming connection failed")
+                                        () -> Log.d(TAG, "Incomming connection accepted on Thread: "+ Thread.currentThread().getName()),
+                                        (err) -> Log.d(TAG, "Incomming connection failed on Thread "+ Thread.currentThread().getName())
 
                                 );
                         if (!btListener.isConnected()) {
@@ -79,9 +79,11 @@ public class BTReplier implements IReplier<BluetoothDevice> {
                             Log.d(TAG, "Recieved message : " + incomingMsg);
                             if (incomingMsg.trim().equals(deviceMAC)) {
                                 stringOutputStream.writeString("YES");
+                                mProfileManager.tryDisconnectFromDevice(deviceMAC).blockingSubscribe(
+                                        () -> Log.d(TAG, "Incomming disconnection accepted"),
+                                        (err) -> Log.d(TAG, "Incomming disconnection failed")
+                                );
                                 mLegalStopFlag.set(true);
-                                Thread.sleep(50);
-                                mProfileManager.tryDisconnectFromDevice(deviceMAC).blockingSubscribe();
                                 if (!emitter.isDisposed()) {
                                     emitter.onComplete();
                                 }
@@ -91,7 +93,7 @@ public class BTReplier implements IReplier<BluetoothDevice> {
                                 continue;
                             }
 
-                        } catch (IOException | InterruptedException exc) {
+                        } catch (IOException  exc) {
                             Log.d(TAG, "Error in Replier: " + exc);
                             if (!emitter.isDisposed()) {
                                 emitter.onError(exc);

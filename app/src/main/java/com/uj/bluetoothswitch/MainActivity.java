@@ -46,6 +46,12 @@ public class MainActivity extends AppCompatActivity {
 
 
     @Override
+    protected void onStart() {
+        super.onStart();
+        sendBroadcast(new Intent(BTConnectionService.COMMAND_USER_SEEKS_CURRENTSTATE));
+    }
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mViewModel = new ViewModelProvider(this, new MainActivityViewModel.MainActivityVMFactory(this))
@@ -56,9 +62,8 @@ public class MainActivity extends AppCompatActivity {
         Intent serviceIntent = new Intent(this, BTConnectionService.class);
         registerReceiver(serverStateBroadcastReceiver, stateIntentFilter);
         startService(serviceIntent);
-        sendBroadcast(new Intent(BTConnectionService.COMMAND_USER_SEEKS_CURRENTSTATE));
-        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
 
+        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
 
         setContentView(R.layout.activity_main);
         navController = Navigation.findNavController(this, R.id.main_activity_host_fragment);

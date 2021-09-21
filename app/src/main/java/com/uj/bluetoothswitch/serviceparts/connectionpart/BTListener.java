@@ -10,6 +10,7 @@ import com.uj.bluetoothswitch.BluetoothSwitcherApp;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.ServerSocket;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -63,16 +64,50 @@ public class BTListener implements IListener {
         return Completable.create(
                 emitter -> {
                     BluetoothSocket tempSocket = null;
-                    BluetoothServerSocket serverSocket = null;
+                    BluetoothServerSocket tempServerSocket = null;
                     try {
                         mAdapter.cancelDiscovery();
-                        serverSocket = mAdapter.listenUsingRfcommWithServiceRecord(BluetoothSwitcherApp.APP_NAME, mUuid);
+                        tempServerSocket= mAdapter.listenUsingRfcommWithServiceRecord(BluetoothSwitcherApp.APP_NAME, mUuid);
+                        final BluetoothServerSocket serverSocket=tempServerSocket;
+                        mServerSocket=tempServerSocket;
+                        emitter.setCancellable(()->{
+                            if(serverSocket!=null)  {
+                                try {
+                                    serverSocket.close();
+                                }catch (IOException exc){
+                                    Log.d(TAG, "Error in closing SSocket Occured");
+                                }
+                            }
+                        });
+
                         Log.d(TAG, "Before incoming connection accepted");
-                        tempSocket = serverSocket.accept();
-                        Log.d(TAG, "Incomming connection accepted with socket : " + tempSocket.toString());
-                        serverSocket.close();
+
+                            try {
+                                tempSocket = serverSocket.accept();
+                                Log.d(TAG, "Incomming connection accepted with socket : " + tempSocket.toString());
+                            }catch (IOException e){
+                                Log.d(TAG, "IOExcception in  SSocketAccept");
+                                    throw e;
+
+                            }
+
+
+//                        Log.d(TAG, "Before incoming connection accepted");
+//                        while(true) {
+//                            try {
+//                                tempSocket = serverSocket.accept(1500);
+//                                Log.d(TAG, "Incomming connection accepted with socket : " + tempSocket.toString());
+//                                break;
+//                            }catch (IOException e){
+//                                if(emitter.isDisposed()){
+//                                    throw e;
+//                                }
+//                            }
+//
+//                        }
+
                     } catch (IOException exc) {
-                        Log.d(TAG, "Error occured in accepting incomin connection: " + exc.getMessage());
+                        Log.d(TAG, "Error occured in accepting incoming connection: " + exc.getMessage());
                         if (!emitter.isDisposed()) {
                             emitter.onError(exc);
                         }

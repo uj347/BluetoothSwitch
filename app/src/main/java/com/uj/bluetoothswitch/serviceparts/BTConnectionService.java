@@ -114,8 +114,8 @@ public class BTConnectionService extends Service {
         mNotificationfactory = new NotificationFactory(this);
         mSoundProfileManager = new SoundProfileManager(this);
         mCommander = new Commander(this);
-        mBroadcastInterpreter = new BroadcastInterpreter(this);
         mAwarenessComponent = new AwarenessComponent(this);
+        mBroadcastInterpreter = new BroadcastInterpreter(this);
     }
 
 

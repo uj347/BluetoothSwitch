@@ -346,12 +346,15 @@ public class Commander {
 
 
     private void stopReplies() {
+        //todo try from another thread
         if (mReplier != null) {
             mReplier.stopWaitingForInquiry();
         }
     }
 
     private void stopInquiries() {
+        //todo try from another thread
+
         if (mServiceInstance != null) {
             mServiceInstance.exposeBroadcastInterpreter()
                     .setManualDisconnectOverride(false);

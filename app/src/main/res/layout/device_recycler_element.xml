@@ -14,13 +14,10 @@
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
         android:layout_weight="75"
-
-        android:backgroundTint="@color/white"
         android:clickable="true"
         android:duplicateParentState="false"
-        android:editable="false"
         android:text=".!."
-        android:textColor="@color/teal_700" />
+        android:layout_marginEnd="20dp" />
 
     <LinearLayout
         android:id="@+id/buttonLayout"

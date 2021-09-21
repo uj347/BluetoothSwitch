@@ -17,7 +17,7 @@ public class BroadcastInterpreter {
     private final SoundprofilesBroadcastReciever mSoundprofilesBroadcastReciever;
     private final UserCommandsBroadcastReceiver mUserCommandsBroadcastReceiver;
     private final Commander mCommander;
-    private final AwarenessComponent mAwarenessCompoent;
+    private final AwarenessComponent mAwarenessComponent;
 
     private final AtomicBoolean mSoundDeviceDisconnectManualOverride = new AtomicBoolean();
 
@@ -26,7 +26,7 @@ public class BroadcastInterpreter {
         this.mSoundprofilesBroadcastReciever = service.exposeSoundProfileBR();
         this.mUserCommandsBroadcastReceiver = service.exposeUserCommandsBR();
         this.mCommander = mServiceInstance.exposeCommander();
-        this.mAwarenessCompoent = mServiceInstance.exposeAwarenessComponent();
+        this.mAwarenessComponent = mServiceInstance.exposeAwarenessComponent();
     }
 
     public void setManualDisconnectOverride(boolean newValue) {
@@ -66,8 +66,8 @@ public class BroadcastInterpreter {
                         .getUserSeeksServiceStateObservable()
                         .doOnNext(devOpt -> Log.d(TAG, "Interpreted FORCEDSTATENOTIFICATION COMMAND  "))
 
-                        .subscribe(obj -> {if(mAwarenessCompoent!=null) {
-                            mAwarenessCompoent.forcedStateNotification();
+                        .subscribe(obj -> {if(mAwarenessComponent !=null) {
+                            mAwarenessComponent.forcedStateNotification();
                         }
                         }),
                 mUserCommandsBroadcastReceiver

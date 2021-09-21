@@ -51,19 +51,7 @@ public class BTInquirer implements IInquirer<BluetoothDevice> {
                 .concatMapSingle(device -> makeSingleInquiry(whatAboutMAC, device))
                 .filter(result -> result)
                 .first(false);
-//                .concatMapCompletableDelayError(device -> {
-//                    if (mFoundFlag.get()) {
-//                        return Completable.complete();
-//                    }
-//                    if (mStopSignal.get()) {
-//                        return Completable.complete();
-//                    }
-//                    return makeSingleInquiry(whatAboutMAC, device);
-//                })
-//                .doOnTerminate(() -> {
-//                    mFoundFlag.set(false);
-//                    mStopSignal.set(false);
-//                });
+
     }
 
 
@@ -106,7 +94,7 @@ public class BTInquirer implements IInquirer<BluetoothDevice> {
                     String answer = stringInputStream.readString();
                     Log.d(TAG, "Recieved answer: " + answer);
                     if (answer.trim().equals("YES")) {
-                        Thread.sleep(900);
+                        Thread.sleep(1200);
                         mProfileManager.tryConnectToSpecifiedDevice(whatAboutMAC).blockingSubscribe(
                                 ()-> Log.d(TAG, "Inquirer: tryDisConnect success: "),
                                 (err)-> Log.d(TAG, "Inquirer: tryDisConnect error: "+err)
@@ -129,57 +117,6 @@ public class BTInquirer implements IInquirer<BluetoothDevice> {
             }
         });
     }
-//    private Completable makeSingleInquiry(String whatAboutMAC, BluetoothDevice deviceToConnect) {
-//
-//        return Completable.create(emitter -> {
-//
-//            Log.d(TAG, "Starting inquery to: " + deviceToConnect.getName() +
-//                    " about: " + whatAboutMAC);
-//            BTClient btClient = new BTClient(mUuid, BluetoothSwitcherApp.APP_NAME);
-//            mCurrentBTClients.add(btClient);
-//            emitter.setCancellable(btClient::stopConnection);
-//
-//                    btClient
-//                            .startConnectionToSpecifiedMAC(deviceToConnect.getAddress())
-//
-//                            .subscribe(
-//                                    () -> {
-//                                        Log.d(TAG, "Client connection connected succesfully");
-//                                    },
-//                                    (err) -> {
-//                                        Log.d(TAG, "Error occured in client connection: " + err.getMessage());
-//                                        if(!emitter.isDisposed()){
-//                                            emitter.onError(err);
-//                                        }
-//                                    }
-//                            );
-//            Log.d(TAG, "Connected to device: " + deviceToConnect.getName());
-//
-//            try {
-//
-//                StringInputStream stringInputStream =
-//                        new StringInputStream(btClient.getInputStream());
-//                StringOutputStream stringOutputStream =
-//                        new StringOutputStream(btClient.getOutputStream());
-//                while (!emitter.isDisposed()) {
-//                    Log.d(TAG, "Sending message: " + whatAboutMAC);
-//                    stringOutputStream.writeString(whatAboutMAC);
-//                    String answer = stringInputStream.readString();
-//                    Log.d(TAG, "Recieved answer: " + answer);
-//                    if (answer.trim().equals("YES")) {
-//                        Thread.sleep(900);
-//                        mProfileManager.tryConnectToSpecifiedDevice(whatAboutMAC).blockingSubscribe();
-//                        mFoundFlag.set(true);
-//                        emitter.onComplete();
-//                    }
-//                }
-//            } catch (IOException | InterruptedException exc) {
-//                if (!emitter.isDisposed()) {
-//                    Log.d(TAG, " Exception occured+ " + exc.getMessage());
-//                    emitter.onError(exc);
-//                }
-//            }
-//        });
-//    }
+
 }
 

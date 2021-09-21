@@ -28,7 +28,7 @@ public class SoundProfileManager implements IBluetoothProfileManager {
 
     private final static String TAG = "SoundProfile_Manager";
     private static final String PHONEMAC = "F8:C3:9E:8B:28:C6";
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
+    private final BluetoothAdapter mAdapter;
     private BluetoothA2dp mA2dpProxy;
     private BluetoothHeadset mHeadsetProxy;
     private ConstructorListener mConstructorListener = new ConstructorListener();
@@ -45,6 +45,7 @@ public class SoundProfileManager implements IBluetoothProfileManager {
 
     public SoundProfileManager(Context context) {
         Log.d(TAG, "SoundProfile: in constructor");
+        this.mAdapter=BluetoothAdapter.getDefaultAdapter();
         this.mContext = context;
         mDisposable.add(Completable.create(e -> {
                     mAdapter.getProfileProxy(context, mConstructorListener, BluetoothProfile.A2DP);

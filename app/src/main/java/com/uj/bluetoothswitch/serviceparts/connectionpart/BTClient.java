@@ -66,6 +66,13 @@ public class BTClient implements IClient {
                         tempSocket.connect();
                     } catch (IOException exc) {
                         Log.d(TAG, "atempt to connect throwed exception: " + exc.getMessage());
+                        if(tempSocket!=null){
+                            try {
+                                tempSocket.close();
+                            }catch (IOException ioExc){
+                                Log.d(TAG, "failed to close temp socket");
+                            }
+                        }
                         if (!emitter.isDisposed()) {
                             emitter.onError(exc);
                         }
@@ -75,6 +82,10 @@ public class BTClient implements IClient {
                         mIsConnected.set(true);
                         if (!emitter.isDisposed()) {
                             emitter.onComplete();
+                        }else{
+                            if (!emitter.isDisposed()) {
+                                emitter.onError(new RuntimeException("Socket not connected"));
+                            }
                         }
                     }
 

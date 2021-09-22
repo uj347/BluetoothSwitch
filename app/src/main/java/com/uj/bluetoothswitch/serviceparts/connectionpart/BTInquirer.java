@@ -65,22 +65,24 @@ public class BTInquirer implements IInquirer<BluetoothDevice> {
             mCurrentBTClients.add(btClient);
             emitter.setCancellable(btClient::stopConnection);
 
-            btClient
-                    .startConnectionToSpecifiedMAC(deviceToConnect.getAddress())
+            mDisposables.add(
+                btClient
+                        .startConnectionToSpecifiedMAC(deviceToConnect.getAddress())
 
-                    .subscribe(
-                            () -> {
-                                Log.d(TAG, "Client connection connected succesfully");
-                                Log.d(TAG, "Connected to device: " + deviceToConnect.getName());
+                        .subscribe(
+                                () -> {
+                                    Log.d(TAG, "Client connection connected succesfully");
+                                    Log.d(TAG, "Connected to device: " + deviceToConnect.getName());
 
-                            },
-                            (err) -> {
-                                Log.d(TAG, "Error occured in client connection: " + err.getMessage());
-                                if (!emitter.isDisposed()) {
-                                    emitter.onSuccess(false);
+                                },
+                                (err) -> {
+                                    Log.d(TAG, "Error occured in client connection: " + err.getMessage());
+                                    if (!emitter.isDisposed()) {
+                                        emitter.onSuccess(false);
+                                    }
                                 }
-                            }
-                    );
+                        )
+            );
 
             try {
 
@@ -96,8 +98,8 @@ public class BTInquirer implements IInquirer<BluetoothDevice> {
                     if (answer.trim().equals("YES")) {
                         Thread.sleep(1200);
                         mProfileManager.tryConnectToSpecifiedDevice(whatAboutMAC).blockingSubscribe(
-                                ()-> Log.d(TAG, "Inquirer: tryDisConnect success: "),
-                                (err)-> Log.d(TAG, "Inquirer: tryDisConnect error: "+err)
+                                ()-> Log.d(TAG, "Inquirer: tryConnect success: "),
+                                (err)-> Log.d(TAG, "Inquirer: DisConnect error: "+err)
                         );
                         // mFoundFlag.set(true);
                         if (!emitter.isDisposed()) {

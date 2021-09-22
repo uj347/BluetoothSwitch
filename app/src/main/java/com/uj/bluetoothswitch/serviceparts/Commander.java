@@ -263,12 +263,12 @@ public class Commander {
                                             }
                                         }
                                 )
+                                        //TODO
                                         .blockingSubscribe(
                                                 (result) -> {
                                                     Log.d(TAG, "reach completed with result: " + result);
                                                     if (!emitter.isDisposed()) {
-                                                        if (!result) {
-                                                            onIdle();
+                                                        if (!emitter.isDisposed()){
                                                             emitter.onComplete();
                                                         }
                                                     }
